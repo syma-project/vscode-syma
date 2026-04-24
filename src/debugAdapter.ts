@@ -25,11 +25,6 @@ interface SetBreakpointsCmd {
   breakpoints: { line: number }[];
 }
 
-interface SetExceptionBreakpointsCmd {
-  command: 'setExceptionBreakpoints';
-  filters: string[];
-}
-
 interface SimpleCommand {
   command: 'continue' | 'next' | 'stepIn' | 'stepOut' | 'stop' | 'getVariables';
 }
@@ -39,7 +34,7 @@ interface EvaluateCmd {
   expression: string;
 }
 
-type ClientCommand = SetBreakpointsCmd | SetExceptionBreakpointsCmd | SimpleCommand | EvaluateCmd;
+type ClientCommand = SetBreakpointsCmd | SimpleCommand | EvaluateCmd;
 
 // Messages received from the syma debug process
 interface SymaStoppedEvent {
@@ -97,7 +92,6 @@ export class SymaDebugSession extends DebugSession {
     | undefined;
   private lastLaunchArgs: SymaLaunchRequestArguments | undefined;
   private lastErrorMessage: string | undefined;
-  private exceptionFilters: string[] = [];
 
   public constructor() {
     super();
@@ -128,19 +122,6 @@ export class SymaDebugSession extends DebugSession {
       supportsConditionalBreakpoints: false,
       supportsHitConditionalBreakpoints: false,
       supportsFunctionBreakpoints: false,
-      supportsExceptionOptions: true,
-      exceptionBreakpointFilters: [
-        {
-          filter: 'all',
-          label: 'All Exceptions',
-          default: false,
-        },
-        {
-          filter: 'uncaught',
-          label: 'Uncaught Exceptions',
-          default: true,
-        },
-      ],
     };
     this.sendResponse(response);
   }
@@ -321,15 +302,6 @@ export class SymaDebugSession extends DebugSession {
     this.sendResponse(response);
   }
 
-  protected setExceptionBreakPointsRequest(
-    response: DebugProtocol.SetExceptionBreakpointsResponse,
-    args: DebugProtocol.SetExceptionBreakpointsArguments,
-  ): void {
-    this.exceptionFilters = args.filters || [];
-    this.sendCommand({ command: 'setExceptionBreakpoints', filters: this.exceptionFilters });
-    this.sendResponse(response);
-  }
-
   protected configurationDoneRequest(
     response: DebugProtocol.ConfigurationDoneResponse,
     _args: DebugProtocol.ConfigurationDoneArguments,
@@ -405,9 +377,7 @@ export class SymaDebugSession extends DebugSession {
       case 'error':
         this.lastErrorMessage = event.message;
         this.sendEvent(new OutputEvent(event.message + '\n', 'stderr'));
-        if (this.exceptionFilters.includes('all') || this.exceptionFilters.includes('uncaught')) {
-          this.sendEvent(new StoppedEvent('exception', SymaDebugSession.THREAD_ID));
-        }
+        this.sendEvent(new StoppedEvent('exception', SymaDebugSession.THREAD_ID));
         break;
       case 'initialized':
         // Debug session initialized

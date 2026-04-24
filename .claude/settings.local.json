@@ -7,7 +7,13 @@
       "Bash(grep -r \"setTrace\" node_modules/vscode-languageserver* --include \"*.d.ts\")",
       "Bash(npm run:*)",
       "Bash(cargo check:*)",
-      "Bash(cargo test:*)"
+      "Bash(cargo test:*)",
+      "Bash(timeout 5 syma --dap /tmp/test.syma)",
+      "Bash(syma --version)",
+      "Bash(printf '{\"command\":\"setBreakpoints\",\"breakpoints\":[{\"line\":1}]}\\\\n{\"command\":\"setExceptionBreakpoints\",\"filters\":[\"uncaught\"]}\\\\n{\"command\":\"continue\"}\\\\n')",
+      "Bash(timeout 5 /Users/tanganke/.cargo/bin/syma --dap /tmp/test.syma)",
+      "Bash(/Users/tanganke/.cargo/bin/syma --dap /tmp/test.syma)",
+      "Bash(echo \"EXIT_CODE=$?\")"
     ]
   }
 }
