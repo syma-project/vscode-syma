@@ -295,10 +295,6 @@
     "punctuation": {
       "patterns": [
         {
-          "name": "punctuation.accessor.double.bracket.syma",
-          "match": "\\[\\[|\\]\\]"
-        },
-        {
           "name": "punctuation.definition.assoc.bracket.syma",
           "match": "<\\||\\|>"
         },
