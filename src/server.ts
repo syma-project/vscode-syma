@@ -14,10 +14,26 @@ import {
   Hover,
   MarkupKind,
   TextDocumentPositionParams,
+  DocumentSymbol,
+  SymbolKind,
+  DocumentSymbolParams,
+  Location,
+  DefinitionParams,
+  SignatureHelp,
+  SignatureInformation,
+  ParameterInformation,
+  SignatureHelpParams,
+  SemanticTokens,
+  SemanticTokensParams,
+  SemanticTokensBuilder,
+  CodeAction,
+  CodeActionKind,
+  CodeActionParams,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { execSync } from 'child_process';
 import { existsSync } from 'fs';
+import { fileURLToPath } from 'url';
 
 // ─── Connection ───
 const connection = createConnection(ProposedFeatures.all);
@@ -208,7 +224,7 @@ const KEYWORDS = [
   'class', 'extends', 'with', 'mixin',
   'module', 'import', 'export', 'as',
   'rule', 'method', 'field', 'constructor',
-  'match',
+  'match', 'Condition',
   'If', 'Which', 'Switch',
   'For', 'While', 'Do',
   'try', 'catch', 'finally', 'throw',
@@ -243,9 +259,28 @@ connection.onInitialize((_params: InitializeParams): InitializeResult => {
       textDocumentSync: TextDocumentSyncKind.Incremental,
       completionProvider: {
         resolveProvider: true,
-        triggerCharacters: ['.', '[', ',', ' '],
+        triggerCharacters: ['.', '[', ','],
       },
       hoverProvider: true,
+      documentSymbolProvider: true,
+      definitionProvider: true,
+      signatureHelpProvider: {
+        triggerCharacters: ['(', ','],
+      },
+      semanticTokensProvider: {
+        legend: {
+          tokenTypes: [
+            'class', 'method', 'function', 'property',
+            'variable', 'type', 'keyword', 'namespace',
+          ],
+          tokenModifiers: ['declaration', 'defaultLibrary'],
+        },
+        full: true,
+        range: false,
+      },
+      codeActionProvider: {
+        codeActionKinds: [CodeActionKind.QuickFix],
+      },
     },
   };
 });
@@ -255,11 +290,11 @@ function validateWithSyma(doc: TextDocument): Diagnostic[] | null {
   const symaPath = findSymaBinary();
   if (!symaPath) return null;
 
-  const filePath = doc.uri.replace('file://', '').replace('%20', ' ');
+  const filePath = fileURLToPath(doc.uri);
   if (!filePath.endsWith('.syma')) return null;
 
   try {
-    execSync(`"${symaPath}" "${filePath}"`, {
+    execSync(`"${symaPath}" --check "${filePath}"`, {
       encoding: 'utf-8',
       timeout: 5000,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -492,16 +527,9 @@ connection.onHover((params: TextDocumentPositionParams): Hover | null => {
   const doc = documents.get(params.textDocument.uri);
   if (!doc) return null;
 
-  const offset = doc.offsetAt(params.position);
-  const text = doc.getText();
-  let start = offset;
-  let end = offset;
-  while (start > 0 && /\w/.test(text[start - 1])) start--;
-  while (end < text.length && /\w/.test(text[end])) end++;
-  const word = text.substring(start, end);
-  if (!word) return null;
-
-  const range = Range.create(doc.positionAt(start), doc.positionAt(end));
+  const wordInfo = getWordAtPosition(doc, params.position);
+  if (!wordInfo) return null;
+  const { word, range } = wordInfo;
 
   const builtin = BUILTINS[word];
   if (builtin) {
@@ -522,6 +550,456 @@ connection.onHover((params: TextDocumentPositionParams): Hover | null => {
   }
 
   return null;
+});
+
+// ─── Helper: extract word at cursor ───
+function getWordAtPosition(doc: TextDocument, position: Position): { word: string; range: Range } | null {
+  const offset = doc.offsetAt(position);
+  const text = doc.getText();
+  let start = offset;
+  let end = offset;
+  while (start > 0 && /\w/.test(text[start - 1])) start--;
+  while (end < text.length && /\w/.test(text[end])) end++;
+  const word = text.substring(start, end);
+  if (!word) return null;
+  return { word, range: Range.create(doc.positionAt(start), doc.positionAt(end)) };
+}
+
+// ─── Document Symbols ───
+connection.onDocumentSymbol((params: DocumentSymbolParams): DocumentSymbol[] => {
+  const doc = documents.get(params.textDocument.uri);
+  if (!doc) return [];
+
+  const text = doc.getText();
+  const lines = text.split('\n');
+  const symbols: DocumentSymbol[] = [];
+
+  function addSymbol(name: string, kind: SymbolKind, lineIndex: number, detail: string, children?: DocumentSymbol[]): void {
+    const range = Range.create(lineIndex, 0, lineIndex, lines[lineIndex].length);
+    const selRange = Range.create(lineIndex, text.indexOf(name, lines.slice(0, lineIndex).join('\n').length + (lineIndex > 0 ? 1 : 0)), lineIndex, lineIndex); // fallback below
+    // Better: compute name start column from the line
+    const col = lines[lineIndex].indexOf(name);
+    const nameRange = Range.create(lineIndex, col >= 0 ? col : 0, lineIndex, (col >= 0 ? col : 0) + name.length);
+    symbols.push(DocumentSymbol.create(name, detail, kind, range, nameRange, children));
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Class/mixin declaration
+    const classMatch = line.match(/^(class|mixin)\s+(\w+)/);
+    if (classMatch) {
+      const isClass = classMatch[1] === 'class';
+      const name = classMatch[2];
+      // Scan inside for methods/fields (between braces)
+      const classChildren: DocumentSymbol[] = [];
+      let braceDepth = 0;
+      let foundOpen = false;
+      for (let j = i + 1; j < lines.length; j++) {
+        for (const ch of lines[j]) {
+          if (ch === '{') { braceDepth++; foundOpen = true; }
+          else if (ch === '}') { braceDepth--; }
+        }
+        if (foundOpen && braceDepth <= 0) break; // class body ends
+        if (foundOpen) {
+          const methodMatch = lines[j].match(/^method\s+(\w+)/);
+          if (methodMatch) {
+            const mLine = j;
+            const mName = methodMatch[1];
+            const mCol = lines[j].indexOf(mName);
+            const mRange = Range.create(mLine, mCol, mLine, mCol + mName.length);
+            const mLineRange = Range.create(mLine, 0, mLine, lines[j].length);
+            classChildren.push(DocumentSymbol.create(mName, 'method', SymbolKind.Method, mLineRange, mRange));
+          }
+          const fieldMatch = lines[j].match(/^field\s+(\w+)/);
+          if (fieldMatch) {
+            const fLine = j;
+            const fName = fieldMatch[1];
+            const fCol = lines[j].indexOf(fName);
+            const fRange = Range.create(fLine, fCol, fLine, fCol + fName.length);
+            const fLineRange = Range.create(fLine, 0, fLine, lines[j].length);
+            classChildren.push(DocumentSymbol.create(fName, 'field', SymbolKind.Field, fLineRange, fRange));
+          }
+        }
+      }
+      const col = line.indexOf(name);
+      const nameRange = Range.create(i, col, i, col + name.length);
+      const lineRange = Range.create(i, 0, i, line.length);
+      symbols.push(DocumentSymbol.create(name, isClass ? 'class' : 'mixin', SymbolKind.Class, lineRange, nameRange, classChildren.length > 0 ? classChildren : undefined));
+      continue;
+    }
+
+    // Module declaration
+    const moduleMatch = line.match(/^module\s+(\w+)/);
+    if (moduleMatch) {
+      const name = moduleMatch[1];
+      const col = line.indexOf(name);
+      const nameRange = Range.create(i, col, i, col + name.length);
+      const lineRange = Range.create(i, 0, i, line.length);
+      symbols.push(DocumentSymbol.create(name, 'module', SymbolKind.Module, lineRange, nameRange));
+      continue;
+    }
+
+    // Rule declaration
+    const ruleMatch = line.match(/^rule\s+(\w+)\s*=/);
+    if (ruleMatch) {
+      const name = ruleMatch[1];
+      const col = line.indexOf(name);
+      const nameRange = Range.create(i, col, i, col + name.length);
+      const lineRange = Range.create(i, 0, i, line.length);
+      symbols.push(DocumentSymbol.create(name, 'rule', SymbolKind.Function, lineRange, nameRange));
+      continue;
+    }
+
+    // Function definition (lowercase word before [)
+    const funcMatch = line.match(/^([a-z]\w+)\s*\[/);
+    if (funcMatch) {
+      const name = funcMatch[1];
+      // Skip if it's a keyword
+      if (KEYWORDS.includes(name)) continue;
+      const col = line.indexOf(name);
+      const nameRange = Range.create(i, col, i, col + name.length);
+      const lineRange = Range.create(i, 0, i, line.length);
+      symbols.push(DocumentSymbol.create(name, 'function', SymbolKind.Function, lineRange, nameRange));
+    }
+  }
+
+  return symbols;
+});
+
+// ─── Go-to-Definition ───
+connection.onDefinition((params: DefinitionParams): Location | null => {
+  const doc = documents.get(params.textDocument.uri);
+  if (!doc) return null;
+
+  const wordInfo = getWordAtPosition(doc, params.position);
+  if (!wordInfo) return null;
+
+  const word = wordInfo.word;
+  const text = doc.getText();
+  const lines = text.split('\n');
+
+  // Check if word is a builtin, keyword, type, or constant -- link to its definition (just show hover-like info)
+  if (BUILTINS[word] || KEYWORDS.includes(word) || TYPES.includes(word) || CONSTANTS[word]) {
+    return null; // No meaningful file location for builtins
+  }
+
+  // Scan for definition: class, mixin, module, rule, or function
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // class Name, mixin Name, module Name
+    let m = line.match(new RegExp(`^(class|mixin|module)\\s+(${word})\\b`));
+    if (m) {
+      const col = line.indexOf(word);
+      return { uri: params.textDocument.uri, range: Range.create(i, col, i, col + word.length) };
+    }
+    // rule name =
+    m = line.match(new RegExp(`^rule\\s+(${word})\\s*=`));
+    if (m) {
+      const col = line.indexOf(word);
+      return { uri: params.textDocument.uri, range: Range.create(i, col, i, col + word.length) };
+    }
+    // name[ (function definition)
+    m = line.match(new RegExp(`^(${word})\\s*\\[`));
+    if (m) {
+      const col = line.indexOf(word);
+      return { uri: params.textDocument.uri, range: Range.create(i, col, i, col + word.length) };
+    }
+  }
+
+  return null;
+});
+
+// ─── Semantic Tokens ───
+connection.languages.semanticTokens.on((params: SemanticTokensParams): SemanticTokens => {
+  const doc = documents.get(params.textDocument.uri);
+  if (!doc) return { data: [] };
+
+  const text = doc.getText();
+  const builder = new SemanticTokensBuilder();
+
+  // Token type indices (matching the legend order)
+  const T = { class: 0, method: 1, function: 2, property: 3, variable: 4, type: 5, keyword: 6, namespace: 7 };
+  // Modifier bits
+  const M = { declaration: 1, defaultLibrary: 2 };
+
+  let inString = false;
+  let inComment = 0;
+  let i = 0;
+
+  // Track context for next word
+  let prevKeyword: string | null = null;
+  let inClassBody = false;
+  let braceDepth = 0;
+
+  while (i < text.length) {
+    // Skip comments
+    if (!inString && text[i] === '(' && i + 1 < text.length && text[i + 1] === '*') {
+      inComment++; i += 2; continue;
+    }
+    if (!inString && inComment > 0 && text[i] === '*' && i + 1 < text.length && text[i + 1] === ')') {
+      inComment--; i += 2; continue;
+    }
+    if (inComment > 0) { i++; continue; }
+
+    // Skip strings
+    if (text[i] === '"' && !inString) { inString = true; i++; continue; }
+    if (text[i] === '"' && inString) { inString = false; i++; continue; }
+    if (inString) {
+      if (text[i] === '\\' && i + 1 < text.length) { i += 2; continue; }
+      i++; continue;
+    }
+
+    // Track brace depth for class body detection
+    if (text[i] === '{') { braceDepth++; inClassBody = braceDepth > 0; i++; continue; }
+    if (text[i] === '}') { braceDepth--; inClassBody = braceDepth > 0; i++; continue; }
+
+    // Check for word start
+    if (/\w/.test(text[i])) {
+      const wordStart = i;
+      while (i < text.length && /\w/.test(text[i])) i++;
+      const word = text.substring(wordStart, i);
+
+      // Check if the line starts with this word (definition patterns)
+      const lineStart = text.lastIndexOf('\n', wordStart - 1) + 1;
+      const isLineStart = wordStart === lineStart || /^\s+$/.test(text.substring(lineStart, wordStart));
+
+      let tokenType = T.variable;
+      let tokenModifier = 0;
+
+      // Classification logic
+      if (prevKeyword === 'class' || prevKeyword === 'mixin') {
+        tokenType = T.class;
+        tokenModifier = M.declaration;
+      } else if (prevKeyword === 'module') {
+        tokenType = T.namespace;
+        tokenModifier = M.declaration;
+      } else if (prevKeyword === 'rule') {
+        tokenType = T.function;
+        tokenModifier = M.declaration;
+      } else if (prevKeyword === 'method') {
+        tokenType = T.method;
+        tokenModifier = M.declaration;
+      } else if (prevKeyword === 'field') {
+        tokenType = T.property;
+        tokenModifier = M.declaration;
+      } else if (BUILTINS[word]) {
+        tokenType = T.keyword;
+        tokenModifier = M.defaultLibrary;
+      } else if (TYPES.includes(word)) {
+        tokenType = T.type;
+      } else if (KEYWORDS.includes(word) || CONSTANTS[word]) {
+        tokenType = T.keyword;
+      } else if (isLineStart && word[0] >= 'a' && word[0] <= 'z' && i < text.length && text[i] === '[') {
+        // Function definition: lowercase word at line start before [
+        tokenType = T.function;
+        tokenModifier = M.declaration;
+      }
+
+      builder.push(wordStart === 0 ? 0 : text.substring(0, wordStart).split('\n').length - 1,
+                   wordStart - text.lastIndexOf('\n', wordStart - 1) - 1,
+                   word.length, tokenType, tokenModifier);
+
+      // Track keyword context for next word
+      const lowerWord = word.toLowerCase();
+      if (['class', 'mixin', 'module', 'rule', 'method', 'field'].includes(lowerWord)) {
+        // Check it's used as a keyword (at line start or after whitespace)
+        if (isLineStart) {
+          prevKeyword = lowerWord;
+        } else {
+          prevKeyword = null;
+        }
+      } else {
+        prevKeyword = null;
+      }
+    } else {
+      i++;
+    }
+  }
+
+  return builder.build();
+});
+
+// ─── Code Actions ───
+connection.onCodeAction((params: CodeActionParams): CodeAction[] => {
+  const actions: CodeAction[] = [];
+
+  for (const diagnostic of params.context.diagnostics) {
+    // Unmatched opening bracket: offer to insert closing bracket
+    const openBracket = diagnostic.message.match(/^Unmatched (\S+) \(missing (\S+)\)$/);
+    if (openBracket) {
+      const missing = openBracket[2];
+      actions.push({
+        title: `Insert ${missing}`,
+        kind: CodeActionKind.QuickFix,
+        edit: {
+          changes: {
+            [params.textDocument.uri]: [
+              {
+                range: Range.create(diagnostic.range.end, diagnostic.range.end),
+                newText: missing,
+              },
+            ],
+          },
+        },
+        diagnostics: [diagnostic],
+        isPreferred: true,
+      });
+      continue;
+    }
+
+    // Unmatched closing bracket: offer to remove it
+    const closeMatch = diagnostic.message.match(/^Unmatched (\)|\]|\}|>>?)$/);
+    if (closeMatch) {
+      actions.push({
+        title: `Remove ${closeMatch[1]}`,
+        kind: CodeActionKind.QuickFix,
+        edit: {
+          changes: {
+            [params.textDocument.uri]: [
+              { range: diagnostic.range, newText: '' },
+            ],
+          },
+        },
+        diagnostics: [diagnostic],
+      });
+      continue;
+    }
+
+    // Unterminated string: offer to add closing quote
+    if (diagnostic.message === 'Unterminated string') {
+      actions.push({
+        title: 'Add closing quote',
+        kind: CodeActionKind.QuickFix,
+        edit: {
+          changes: {
+            [params.textDocument.uri]: [
+              {
+                range: Range.create(diagnostic.range.end, diagnostic.range.end),
+                newText: '"',
+              },
+            ],
+          },
+        },
+        diagnostics: [diagnostic],
+      });
+      continue;
+    }
+
+    // Unterminated block comment: offer to close it
+    if (diagnostic.message.startsWith('Unterminated block comment')) {
+      actions.push({
+        title: 'Close block comment',
+        kind: CodeActionKind.QuickFix,
+        edit: {
+          changes: {
+            [params.textDocument.uri]: [
+              {
+                range: Range.create(diagnostic.range.end, diagnostic.range.end),
+                newText: '*)',
+              },
+            ],
+          },
+        },
+        diagnostics: [diagnostic],
+      });
+      continue;
+    }
+  }
+
+  return actions;
+});
+
+// ─── Helper: extract params from signature ───
+function extractParameters(signature: string): string[] {
+  // Given "Table[expr, {i, min, max}]", extract ["expr", "{i, min, max}"]
+  const match = signature.match(/^\w+\[(.+)\]$/);
+  if (!match) return [];
+  const params: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (const ch of match[1]) {
+    if ((ch === ',' || ch === ';') && depth === 0) {
+      params.push(current.trim());
+      current = '';
+    } else {
+      if (ch === '{' || ch === '(' || ch === '[') depth++;
+      if (ch === '}' || ch === ')' || ch === ']') depth--;
+      current += ch;
+    }
+  }
+  if (current.trim()) params.push(current.trim());
+  return params;
+}
+
+// ─── Signature Help ───
+connection.onSignatureHelp((params: SignatureHelpParams): SignatureHelp | null => {
+  const doc = documents.get(params.textDocument.uri);
+  if (!doc) return null;
+
+  const text = doc.getText();
+  const offset = doc.offsetAt(params.position);
+
+  // Walk backwards from cursor to find function name before '('
+  let depth = 0;
+  let funcEnd = -1;
+
+  for (let i = offset - 1; i >= 0; i--) {
+    const ch = text[i];
+    if (ch === ')' || ch === ']' || ch === '}') {
+      depth++;
+    } else if (ch === '(' || ch === '[' || ch === '{') {
+      if (depth === 0) {
+        funcEnd = i;
+        break;
+      }
+      depth--;
+    }
+  }
+
+  if (funcEnd < 0) return null;
+
+  // Walk back from funcEnd to find the word before it (function name)
+  let nameStart = funcEnd;
+  while (nameStart > 0 && /\w/.test(text[nameStart - 1])) nameStart--;
+  if (nameStart === funcEnd) return null; // No word before bracket
+
+  const funcName = text.substring(nameStart, funcEnd);
+
+  // Look up in BUILTINS
+  const builtin = BUILTINS[funcName];
+  if (!builtin) return null;
+
+  const params_list = extractParameters(builtin.signature);
+  const paramInfo: ParameterInformation[] = params_list.map(p =>
+    ParameterInformation.create(p)
+  );
+
+  // Count commas to find active parameter
+  let activeParam = 0;
+  let commaDepth = 0;
+  for (let i = funcEnd + 1; i < offset; i++) {
+    const ch = text[i];
+    if (ch === ')' || ch === ']' || ch === '}') {
+      commaDepth--;
+    } else if (ch === '(' || ch === '[' || ch === '{') {
+      commaDepth++;
+    } else if (ch === ',' && commaDepth === 0) {
+      activeParam++;
+    }
+  }
+
+  const signatureInfo = SignatureInformation.create(
+    builtin.signature,
+    builtin.doc,
+    ...paramInfo
+  );
+
+  return {
+    signatures: [signatureInfo],
+    activeSignature: 0,
+    activeParameter: Math.min(activeParam, Math.max(0, paramInfo.length - 1)),
+  };
 });
 
 // ─── Start ───

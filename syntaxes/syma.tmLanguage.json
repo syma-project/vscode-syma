@@ -85,7 +85,7 @@
         },
         {
           "name": "keyword.control.match.syma",
-          "match": "\\b(?:match|Function)\\b"
+          "match": "\\b(?:match|Condition|Function)\\b"
         },
         {
           "name": "keyword.declaration.class.syma",
@@ -126,7 +126,7 @@
         },
         {
           "name": "constant.language.numeric.syma",
-          "match": "\\b(?:Pi|E|I)\\b"
+          "match": "\\b(?:Pi|E|I|Alice)\\b"
         }
       ]
     },
@@ -135,7 +135,7 @@
       "patterns": [
         {
           "name": "support.type.syma",
-          "match": "\\b(?:Integer|Real|Rational|Complex|String|Symbol|Boolean|Number|Atom|List|Rule|RuleDelayed|Pattern|Function|Object|Compound|Expr|Head|TypeOf|MatchQ)\\b"
+          "match": "\\b(?:Integer|Real|Rational|Complex|String|Symbol|Boolean|Number|Atom|List|Rule|RuleDelayed|Pattern|Function|Object|Compound|Expr|Assoc|Error)\\b"
         }
       ]
     },
@@ -148,7 +148,7 @@
         },
         {
           "name": "support.function.builtin.math.syma",
-          "match": "\\b(?:Abs|Ceiling|Floor|Round|Mod|Sqrt|Exp|Log|Log2|Log10|Power|Factorial|GCD|LCM)\\b"
+          "match": "\\b(?:Abs|Ceiling|Floor|Round|Mod|Sqrt|Exp|Log|Log2|Log10|Power|Factorial|GCD|LCM|N)\\b"
         },
         {
           "name": "support.function.builtin.arithmetic.syma",
@@ -164,7 +164,7 @@
         },
         {
           "name": "support.function.builtin.string.syma",
-          "match": "\\b(?:StringJoin|StringLength|StringSplit|StringReplace|StringReverse|StringTake|StringDrop|StringContainsQ|ToString|ToExpression|ToLowerCase|ToUpperCase)\\b"
+          "match": "\\b(?:StringJoin|StringLength|StringSplit|StringReplace|StringReverse|StringTake|StringDrop|StringContainsQ|StringStartsQ|StringEndsQ|StringMatchQ|StringPadLeft|StringPadRight|StringTrim|Characters|ToString|ToExpression|ToLowerCase|ToUpperCase)\\b"
         },
         {
           "name": "support.function.builtin.assoc.syma",
@@ -172,12 +172,23 @@
         },
         {
           "name": "support.function.builtin.io.syma",
-          "match": "\\b(?:Print|Input|RandomReal|RandomInteger|RandomChoice)\\b"
+          "match": "\\b(?:Print|PrintF|Write|WriteLine|Input|RandomReal|RandomInteger|RandomChoice)\\b"
         },
         {
           "name": "support.function.builtin.logic.syma",
           "match": "\\b(?:And|Or|Not|Equal|Unequal|Less|Greater|LessEqual|GreaterEqual|Min|Max)\\b"
-        }
+        },
+        {
+          "name": "support.function.builtin.pattern.syma",
+          "match": "\\b(?:Head|TypeOf|MatchQ)\\b"
+        },
+        {
+          "name": "support.function.builtin.error.syma",
+          "match": "\\b(?:Error|Catch|Throw)\\b"
+        },
+        {
+          "name": "support.function.builtin.attribute.syma",
+          "match": "\\b(?:Flat|Listable|Orderless|OneIdentity|HoldAll|HoldAllComplete|NumericFunction)\\b"
       ]
     },
 

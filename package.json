@@ -87,6 +87,16 @@
         }
       }
     },
+    "commands": [
+      {
+        "command": "syma.runFile",
+        "title": "Syma: Run File"
+      },
+      {
+        "command": "syma.checkSyntax",
+        "title": "Syma: Check Syntax"
+      }
+    ],
     "debuggers": [
       {
         "type": "syma",

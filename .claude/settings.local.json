@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /Users/tanganke/Desktop/projects/syma/vscode-syma/.eslintrc*)",
+      "Bash(ls -la /Users/tanganke/Desktop/projects/syma/vscode-syma/.eslint*)",
+      "Bash(npx tsc:*)",
+      "Bash(grep -r \"setTrace\" node_modules/vscode-languageserver* --include \"*.d.ts\")",
+      "Bash(npm run:*)",
+      "Bash(cargo check:*)",
+      "Bash(cargo test:*)"
+    ]
+  }
+}

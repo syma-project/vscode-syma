@@ -12,7 +12,6 @@ import {
 } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { ChildProcess, spawn } from 'child_process';
-import * as readline from 'readline';
 
 interface SymaLaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
   program: string;
@@ -26,6 +25,11 @@ interface SetBreakpointsCmd {
   breakpoints: { line: number }[];
 }
 
+interface SetExceptionBreakpointsCmd {
+  command: 'setExceptionBreakpoints';
+  filters: string[];
+}
+
 interface SimpleCommand {
   command: 'continue' | 'next' | 'stepIn' | 'stepOut' | 'stop' | 'getVariables';
 }
@@ -35,7 +39,7 @@ interface EvaluateCmd {
   expression: string;
 }
 
-type ClientCommand = SetBreakpointsCmd | SimpleCommand | EvaluateCmd;
+type ClientCommand = SetBreakpointsCmd | SetExceptionBreakpointsCmd | SimpleCommand | EvaluateCmd;
 
 // Messages received from the syma debug process
 interface SymaStoppedEvent {
@@ -91,6 +95,9 @@ export class SymaDebugSession extends DebugSession {
   private pendingEvaluateResolve:
     | ((result: { result: string; type: string }) => void)
     | undefined;
+  private lastLaunchArgs: SymaLaunchRequestArguments | undefined;
+  private lastErrorMessage: string | undefined;
+  private exceptionFilters: string[] = [];
 
   public constructor() {
     super();
@@ -102,18 +109,18 @@ export class SymaDebugSession extends DebugSession {
     response: DebugProtocol.InitializeResponse,
   ): void {
     response.body = {
-      supportsConfigurationDoneRequest: false,
+      supportsConfigurationDoneRequest: true,
       supportsEvaluateForHovers: false,
       supportsStepBack: false,
       supportsSetVariable: false,
-      supportsRestartRequest: false,
+      supportsRestartRequest: true,
       supportsGotoTargetsRequest: false,
       supportsStepInTargetsRequest: false,
       supportsCompletionsRequest: false,
       supportsModulesRequest: false,
       supportsRestartFrame: false,
       supportsValueFormattingOptions: false,
-      supportsExceptionInfoRequest: false,
+      supportsExceptionInfoRequest: true,
       supportTerminateDebuggee: true,
       supportSuspendDebuggee: false,
       supportsDelayedStackTraceLoading: false,
@@ -121,16 +128,28 @@ export class SymaDebugSession extends DebugSession {
       supportsConditionalBreakpoints: false,
       supportsHitConditionalBreakpoints: false,
       supportsFunctionBreakpoints: false,
-      supportsExceptionOptions: false,
+      supportsExceptionOptions: true,
+      exceptionBreakpointFilters: [
+        {
+          filter: 'all',
+          label: 'All Exceptions',
+          default: false,
+        },
+        {
+          filter: 'uncaught',
+          label: 'Uncaught Exceptions',
+          default: true,
+        },
+      ],
     };
     this.sendResponse(response);
-    this.sendEvent(new InitializedEvent());
   }
 
   protected async launchRequest(
     response: DebugProtocol.LaunchResponse,
     args: SymaLaunchRequestArguments,
   ): Promise<void> {
+    this.lastLaunchArgs = args;
     const program = args.program;
     const symaPath = args.symaPath || 'syma';
     const extraArgs = args.args || [];
@@ -147,26 +166,27 @@ export class SymaDebugSession extends DebugSession {
         return;
       }
 
-      // Handle stdout (debug protocol messages)
-      const rl = readline.createInterface({ input: this.process.stdout });
-      rl.on('line', (line: string) => {
-        const trimmed = line.trim();
-        if (!trimmed) return;
-        try {
-          const event: SymaEvent = JSON.parse(trimmed);
-          this.handleSymaEvent(event);
-        } catch {
-          // Non-JSON output — treat as stdout
-          this.sendEvent(
-            new OutputEvent(trimmed + '\n', 'stdout'),
-          );
+      // Handle stdout (debug protocol messages) — buffered to handle partial lines
+      let stdoutBuffer = '';
+      this.process.stdout.on('data', (data: Buffer) => {
+        stdoutBuffer += data.toString();
+        const lines = stdoutBuffer.split('\n');
+        stdoutBuffer = lines.pop() || '';
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            const event: SymaEvent = JSON.parse(trimmed);
+            this.handleSymaEvent(event);
+          } catch {
+            this.sendEvent(new OutputEvent(trimmed + '\n', 'stdout'));
+          }
         }
       });
 
       // Forward stderr to Debug Console
-      const errRl = readline.createInterface({ input: this.process.stderr });
-      errRl.on('line', (line: string) => {
-        this.sendEvent(new OutputEvent(line + '\n', 'stderr'));
+      this.process.stderr.on('data', (data: Buffer) => {
+        this.sendEvent(new OutputEvent(data.toString(), 'stderr'));
       });
 
       this.process.on('exit', () => {
@@ -177,6 +197,7 @@ export class SymaDebugSession extends DebugSession {
         this.sendErrorResponse(response, 0, `Failed to start syma: ${err.message}`);
       });
 
+      this.sendEvent(new InitializedEvent());
       this.sendResponse(response);
     } catch (err: any) {
       this.sendErrorResponse(response, 0, `Failed to start syma: ${err.message}`);
@@ -300,6 +321,52 @@ export class SymaDebugSession extends DebugSession {
     this.sendResponse(response);
   }
 
+  protected setExceptionBreakPointsRequest(
+    response: DebugProtocol.SetExceptionBreakpointsResponse,
+    args: DebugProtocol.SetExceptionBreakpointsArguments,
+  ): void {
+    this.exceptionFilters = args.filters || [];
+    this.sendCommand({ command: 'setExceptionBreakpoints', filters: this.exceptionFilters });
+    this.sendResponse(response);
+  }
+
+  protected configurationDoneRequest(
+    response: DebugProtocol.ConfigurationDoneResponse,
+    _args: DebugProtocol.ConfigurationDoneArguments,
+  ): void {
+    this.sendCommand({ command: 'continue' });
+    this.sendResponse(response);
+  }
+
+  protected exceptionInfoRequest(
+    response: DebugProtocol.ExceptionInfoResponse,
+    _args: DebugProtocol.ExceptionInfoArguments,
+  ): void {
+    response.body = {
+      exceptionId: 'SymaError',
+      description: this.lastErrorMessage || 'An error occurred',
+      breakMode: 'always',
+    };
+    this.sendResponse(response);
+  }
+
+  protected restartRequest(
+    response: DebugProtocol.RestartResponse,
+    _args: DebugProtocol.RestartArguments,
+  ): void {
+    if (this.process) {
+      this.sendCommand({ command: 'stop' });
+      this.process.kill();
+      this.process = undefined;
+    }
+    if (this.lastLaunchArgs) {
+      // Re-launch by calling launchRequest with stored args
+      this.launchRequest(response as unknown as DebugProtocol.LaunchResponse, this.lastLaunchArgs);
+    } else {
+      this.sendResponse(response);
+    }
+  }
+
   // ── Private helpers ──────────────────────────────────────────────────────
 
   private handleSymaEvent(event: SymaEvent): void {
@@ -336,7 +403,11 @@ export class SymaDebugSession extends DebugSession {
         this.sendEvent(new OutputEvent(event.output, event.category));
         break;
       case 'error':
+        this.lastErrorMessage = event.message;
         this.sendEvent(new OutputEvent(event.message + '\n', 'stderr'));
+        if (this.exceptionFilters.includes('all') || this.exceptionFilters.includes('uncaught')) {
+          this.sendEvent(new StoppedEvent('exception', SymaDebugSession.THREAD_ID));
+        }
         break;
       case 'initialized':
         // Debug session initialized
@@ -345,8 +416,12 @@ export class SymaDebugSession extends DebugSession {
   }
 
   private sendCommand(cmd: ClientCommand): void {
-    if (this.process?.stdin) {
-      this.process.stdin.write(JSON.stringify(cmd) + '\n');
+    if (this.process?.stdin?.writable) {
+      try {
+        this.process.stdin.write(JSON.stringify(cmd) + '\n');
+      } catch {
+        // Process likely exited — nothing to do
+      }
     }
   }
 
