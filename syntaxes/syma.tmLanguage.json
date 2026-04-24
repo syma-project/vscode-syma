@@ -295,24 +295,74 @@
     "punctuation": {
       "patterns": [
         {
-          "name": "punctuation.bracket.double.syma",
-          "match": "\\[\\[|\\]\\]"
+          "name": "punctuation.accessor.double.begin.syma",
+          "match": "\\[\\[",
+          "captures": {
+            "0": { "name": "punctuation.section.block.begin.syma" }
+          }
         },
         {
-          "name": "punctuation.bracket.assoc.syma",
-          "match": "<\\||\\|>"
+          "name": "punctuation.accessor.double.end.syma",
+          "match": "\\]\\]",
+          "captures": {
+            "0": { "name": "punctuation.section.block.end.syma" }
+          }
         },
         {
-          "name": "punctuation.bracket.round.syma",
-          "match": "\\(|\\)"
+          "name": "punctuation.definition.assoc.begin.syma",
+          "match": "<\\|",
+          "captures": {
+            "0": { "name": "punctuation.section.block.begin.syma" }
+          }
         },
         {
-          "name": "punctuation.bracket.square.syma",
-          "match": "\\[|\\]"
+          "name": "punctuation.definition.assoc.end.syma",
+          "match": "\\|>",
+          "captures": {
+            "0": { "name": "punctuation.section.block.end.syma" }
+          }
         },
         {
-          "name": "punctuation.bracket.curly.syma",
-          "match": "\\{|\\}"
+          "name": "meta.brace.round.syma",
+          "match": "\\(",
+          "captures": {
+            "0": { "name": "punctuation.section.parens.begin.syma" }
+          }
+        },
+        {
+          "name": "meta.brace.round.syma",
+          "match": "\\)",
+          "captures": {
+            "0": { "name": "punctuation.section.parens.end.syma" }
+          }
+        },
+        {
+          "name": "meta.brace.square.syma",
+          "match": "\\[",
+          "captures": {
+            "0": { "name": "punctuation.section.block.begin.syma" }
+          }
+        },
+        {
+          "name": "meta.brace.square.syma",
+          "match": "\\]",
+          "captures": {
+            "0": { "name": "punctuation.section.block.end.syma" }
+          }
+        },
+        {
+          "name": "meta.brace.curly.syma",
+          "match": "\\{",
+          "captures": {
+            "0": { "name": "punctuation.section.block.begin.syma" }
+          }
+        },
+        {
+          "name": "meta.brace.curly.syma",
+          "match": "\\}",
+          "captures": {
+            "0": { "name": "punctuation.section.block.end.syma" }
+          }
         },
         {
           "name": "punctuation.separator.comma.syma",
