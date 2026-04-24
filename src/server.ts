@@ -16,10 +16,51 @@ import {
   TextDocumentPositionParams,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { execSync } from 'child_process';
+import { existsSync } from 'fs';
 
 // ─── Connection ───
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
+
+// ─── Settings ───
+interface SymaSettings {
+  serverPath: string;
+  serverTrace: string;
+  diagnosticsEnabled: boolean;
+  diagnosticsDelay: number;
+}
+
+let globalSettings: SymaSettings = {
+  serverPath: '',
+  serverTrace: 'off',
+  diagnosticsEnabled: true,
+  diagnosticsDelay: 500,
+};
+
+connection.onDidChangeConfiguration((change) => {
+  const settings = change.settings?.syma;
+  if (settings) {
+    globalSettings = {
+      serverPath: settings.server?.path ?? '',
+      serverTrace: settings.server?.trace ?? 'off',
+      diagnosticsEnabled: settings.diagnostics?.enabled ?? true,
+      diagnosticsDelay: settings.diagnostics?.delay ?? 500,
+    };
+  }
+});
+
+// ─── Find syma binary ───
+function findSymaBinary(): string | null {
+  if (globalSettings.serverPath && existsSync(globalSettings.serverPath)) {
+    return globalSettings.serverPath;
+  }
+  try {
+    return execSync('which syma', { encoding: 'utf-8' }).trim();
+  } catch {
+    return null;
+  }
+}
 
 // ─── Built-in function documentation ───
 const BUILTINS: Record<string, { signature: string; doc: string; kind: CompletionItemKind }> = {
@@ -45,6 +86,7 @@ const BUILTINS: Record<string, { signature: string; doc: string; kind: Completio
   'Ceiling': { signature: 'Ceiling[x]', doc: 'Round up to integer', kind: CompletionItemKind.Function },
   'Round': { signature: 'Round[x]', doc: 'Round to nearest integer', kind: CompletionItemKind.Function },
   'Mod':   { signature: 'Mod[n, m]', doc: 'Modular remainder', kind: CompletionItemKind.Function },
+  'N':     { signature: 'N[expr]', doc: 'Evaluate numerically', kind: CompletionItemKind.Function },
   // Arithmetic
   'Plus':  { signature: 'Plus[a, b, ...]', doc: 'Addition (also a + b)', kind: CompletionItemKind.Operator },
   'Times': { signature: 'Times[a, b, ...]', doc: 'Multiplication (also a * b)', kind: CompletionItemKind.Operator },
@@ -104,6 +146,13 @@ const BUILTINS: Record<string, { signature: string; doc: string; kind: Completio
   'StringTake':     { signature: 'StringTake[s, n]', doc: 'Take first n characters', kind: CompletionItemKind.Function },
   'StringDrop':     { signature: 'StringDrop[s, n]', doc: 'Drop first n characters', kind: CompletionItemKind.Function },
   'StringContainsQ': { signature: 'StringContainsQ[s, sub]', doc: 'Test if substring is present', kind: CompletionItemKind.Function },
+  'StringStartsQ':  { signature: 'StringStartsQ[s, prefix]', doc: 'Test if string starts with prefix', kind: CompletionItemKind.Function },
+  'StringEndsQ':    { signature: 'StringEndsQ[s, suffix]', doc: 'Test if string ends with suffix', kind: CompletionItemKind.Function },
+  'StringMatchQ':   { signature: 'StringMatchQ[s, pattern]', doc: 'Test if string matches pattern', kind: CompletionItemKind.Function },
+  'StringPadLeft':  { signature: 'StringPadLeft[s, n]', doc: 'Pad string on the left', kind: CompletionItemKind.Function },
+  'StringPadRight': { signature: 'StringPadRight[s, n]', doc: 'Pad string on the right', kind: CompletionItemKind.Function },
+  'StringTrim':     { signature: 'StringTrim[s]', doc: 'Remove leading/trailing whitespace', kind: CompletionItemKind.Function },
+  'Characters':     { signature: 'Characters[s]', doc: 'Split string into character list', kind: CompletionItemKind.Function },
   'ToString':       { signature: 'ToString[expr]', doc: 'Expression to string', kind: CompletionItemKind.Function },
   'ToExpression':   { signature: 'ToExpression[s]', doc: 'String to expression', kind: CompletionItemKind.Function },
   'ToLowerCase':    { signature: 'ToLowerCase[s]', doc: 'Convert to lowercase', kind: CompletionItemKind.Function },
@@ -114,7 +163,10 @@ const BUILTINS: Record<string, { signature: string; doc: string; kind: Completio
   'Lookup':     { signature: 'Lookup[assoc, key]', doc: 'Lookup with default', kind: CompletionItemKind.Function },
   'KeyExistsQ': { signature: 'KeyExistsQ[assoc, key]', doc: 'Test if key exists', kind: CompletionItemKind.Function },
   // IO
-  'Print':          { signature: 'Print[expr, ...]', doc: 'Print to output', kind: CompletionItemKind.Function },
+  'Print':          { signature: 'Print[expr, ...]', doc: 'Print to stdout', kind: CompletionItemKind.Function },
+  'PrintF':         { signature: 'PrintF[fmt, args...]', doc: 'Formatted print (printf-style)', kind: CompletionItemKind.Function },
+  'Write':          { signature: 'Write[stream, expr, ...]', doc: 'Write expressions to a stream', kind: CompletionItemKind.Function },
+  'WriteLine':      { signature: 'WriteLine[stream, expr, ...]', doc: 'Write expressions + newline to a stream', kind: CompletionItemKind.Function },
   'Input':          { signature: 'Input[]', doc: 'Read user input', kind: CompletionItemKind.Function },
   'RandomReal':     { signature: 'RandomReal[] | RandomReal[{min, max}]', doc: 'Random real number', kind: CompletionItemKind.Function },
   'RandomInteger':  { signature: 'RandomInteger[n] | RandomInteger[{min, max}]', doc: 'Random integer', kind: CompletionItemKind.Function },
@@ -135,6 +187,20 @@ const BUILTINS: Record<string, { signature: string; doc: string; kind: Completio
   'Head':    { signature: 'Head[expr]', doc: 'Type head of expression', kind: CompletionItemKind.Function },
   'TypeOf':  { signature: 'TypeOf[expr]', doc: 'Type name (class name for objects)', kind: CompletionItemKind.Function },
   'MatchQ':  { signature: 'MatchQ[expr, pattern]', doc: 'Test if expr matches pattern', kind: CompletionItemKind.Function },
+  // Error handling
+  'Error':  { signature: 'Error[message]', doc: 'Raise an error', kind: CompletionItemKind.Function },
+  'Catch':  { signature: 'Catch[expr]', doc: 'Catch thrown values', kind: CompletionItemKind.Function },
+  'Throw':  { signature: 'Throw[value]', doc: 'Throw a value for Catch', kind: CompletionItemKind.Function },
+  // Attributes
+  'Flat':           { signature: 'Flat', doc: 'Attribute: associative (f[f[a,b],c] => f[a,b,c])', kind: CompletionItemKind.Property },
+  'Listable':       { signature: 'Listable', doc: 'Attribute: auto-thread over lists', kind: CompletionItemKind.Property },
+  'Orderless':      { signature: 'Orderless', doc: 'Attribute: commutative', kind: CompletionItemKind.Property },
+  'OneIdentity':    { signature: 'OneIdentity', doc: 'Attribute: f[x] => x for single arg', kind: CompletionItemKind.Property },
+  'HoldAll':        { signature: 'HoldAll', doc: 'Attribute: hold all arguments unevaluated', kind: CompletionItemKind.Property },
+  'HoldAllComplete': { signature: 'HoldAllComplete', doc: 'Attribute: hold all args, ignore HoldRelease', kind: CompletionItemKind.Property },
+  'NumericFunction': { signature: 'NumericFunction', doc: 'Attribute: function is numeric', kind: CompletionItemKind.Property },
+  // Constants / types used as builtins
+  'Alice':  { signature: 'Alice', doc: 'Test constant', kind: CompletionItemKind.Value },
 };
 
 // ─── Keywords ───
@@ -157,6 +223,7 @@ const TYPES = [
   'String', 'Symbol', 'Boolean', 'Number', 'Atom',
   'List', 'Rule', 'RuleDelayed', 'Pattern',
   'Function', 'Object', 'Compound', 'Expr',
+  'Assoc', 'Error',
 ];
 
 // ─── Constants ───
@@ -183,19 +250,79 @@ connection.onInitialize((_params: InitializeParams): InitializeResult => {
   };
 });
 
-// ─── Diagnostics ───
-function validateDocument(doc: TextDocument): Diagnostic[] {
+// ─── Validate with syma binary ───
+function validateWithSyma(doc: TextDocument): Diagnostic[] | null {
+  const symaPath = findSymaBinary();
+  if (!symaPath) return null;
+
+  const filePath = doc.uri.replace('file://', '').replace('%20', ' ');
+  if (!filePath.endsWith('.syma')) return null;
+
+  try {
+    execSync(`"${symaPath}" "${filePath}"`, {
+      encoding: 'utf-8',
+      timeout: 5000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    return []; // No errors
+  } catch (err: any) {
+    const stderr: string = err.stderr ?? '';
+    const diagnostics: Diagnostic[] = [];
+
+    // Parse error lines: "LexError: line:col: message" or "ParseError: line:col: message"
+    // Also handles: "label: message" with "  filepath" on next line
+    const lines = stderr.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      // Match: "LexError: 3:5: unexpected character" or "ParseError: 2:10: expected ']'"
+      const match = line.match(/^(?:LexError|ParseError):\s*(\d+):(\d+):\s*(.+)$/);
+      if (match) {
+        const lineNum = parseInt(match[1]) - 1; // LSP is 0-based
+        const colNum = parseInt(match[2]) - 1;
+        const message = match[3].trim();
+        diagnostics.push({
+          severity: DiagnosticSeverity.Error,
+          range: Range.create(
+            Math.max(0, lineNum), Math.max(0, colNum),
+            Math.max(0, lineNum), Math.max(0, colNum + 1)
+          ),
+          message,
+          source: 'syma',
+        });
+      }
+      // Also match: "Error: line:col: message" (eval errors)
+      const evalMatch = line.match(/^Error:\s*(\d+):(\d+):\s*(.+)$/);
+      if (evalMatch) {
+        const lineNum = parseInt(evalMatch[1]) - 1;
+        const colNum = parseInt(evalMatch[2]) - 1;
+        const message = evalMatch[3].trim();
+        diagnostics.push({
+          severity: DiagnosticSeverity.Warning,
+          range: Range.create(
+            Math.max(0, lineNum), Math.max(0, colNum),
+            Math.max(0, lineNum), Math.max(0, colNum + 1)
+          ),
+          message,
+          source: 'syma',
+        });
+      }
+    }
+
+    return diagnostics;
+  }
+}
+
+// ─── Fallback bracket-only validation ───
+function validateBrackets(doc: TextDocument): Diagnostic[] {
   const text = doc.getText();
   const diagnostics: Diagnostic[] = [];
 
-  // Track bracket depth
   const bracketStack: { char: string; pos: number }[] = [];
   let inString = false;
-  let inComment = 0; // nesting depth
+  let inComment = 0;
   let i = 0;
 
   while (i < text.length) {
-    // Nested block comments
     if (!inString && text[i] === '(' && i + 1 < text.length && text[i + 1] === '*') {
       inComment++;
       i += 2;
@@ -206,35 +333,21 @@ function validateDocument(doc: TextDocument): Diagnostic[] {
       i += 2;
       continue;
     }
-
     if (inComment > 0) { i++; continue; }
 
-    // Strings
-    if (text[i] === '"' && !inString) {
-      inString = true;
-      i++;
-      continue;
-    }
-    if (text[i] === '"' && inString) {
-      inString = false;
-      i++;
-      continue;
-    }
+    if (text[i] === '"' && !inString) { inString = true; i++; continue; }
+    if (text[i] === '"' && inString) { inString = false; i++; continue; }
     if (inString) {
       if (text[i] === '\\' && i + 1 < text.length) { i += 2; continue; }
       i++;
       continue;
     }
 
-    // Brackets
     const ch = text[i];
     const next = i + 1 < text.length ? text[i + 1] : '';
 
-    // Double brackets
     if (ch === '[' && next === '[') {
-      bracketStack.push({ char: '[[', pos: i });
-      i += 2;
-      continue;
+      bracketStack.push({ char: '[[', pos: i }); i += 2; continue;
     }
     if (ch === ']' && next === ']') {
       if (bracketStack.length > 0 && bracketStack[bracketStack.length - 1].char === '[[') {
@@ -247,15 +360,10 @@ function validateDocument(doc: TextDocument): Diagnostic[] {
           source: 'syma',
         });
       }
-      i += 2;
-      continue;
+      i += 2; continue;
     }
-
-    // Association brackets
     if (ch === '<' && next === '|') {
-      bracketStack.push({ char: '<|', pos: i });
-      i += 2;
-      continue;
+      bracketStack.push({ char: '<|', pos: i }); i += 2; continue;
     }
     if (ch === '|' && next === '>') {
       if (bracketStack.length > 0 && bracketStack[bracketStack.length - 1].char === '<|') {
@@ -268,15 +376,11 @@ function validateDocument(doc: TextDocument): Diagnostic[] {
           source: 'syma',
         });
       }
-      i += 2;
-      continue;
+      i += 2; continue;
     }
 
-    // Single brackets
     if (ch === '(' || ch === '[' || ch === '{') {
-      bracketStack.push({ char: ch, pos: i });
-      i++;
-      continue;
+      bracketStack.push({ char: ch, pos: i }); i++; continue;
     }
     const closingMap: Record<string, string> = { ')': '(', ']': '[', '}': '{' };
     if (ch === ')' || ch === ']' || ch === '}') {
@@ -291,14 +395,11 @@ function validateDocument(doc: TextDocument): Diagnostic[] {
           source: 'syma',
         });
       }
-      i++;
-      continue;
+      i++; continue;
     }
-
     i++;
   }
 
-  // Check for unterminated string
   if (inString) {
     diagnostics.push({
       severity: DiagnosticSeverity.Error,
@@ -307,8 +408,6 @@ function validateDocument(doc: TextDocument): Diagnostic[] {
       source: 'syma',
     });
   }
-
-  // Check for unterminated comment
   if (inComment > 0) {
     diagnostics.push({
       severity: DiagnosticSeverity.Warning,
@@ -317,8 +416,6 @@ function validateDocument(doc: TextDocument): Diagnostic[] {
       source: 'syma',
     });
   }
-
-  // Check for unmatched opening brackets
   for (const b of bracketStack) {
     const close: Record<string, string> = { '(': ')', '[': ']', '{': '}', '[[': ']]', '<|': '|>' };
     diagnostics.push({
@@ -332,14 +429,26 @@ function validateDocument(doc: TextDocument): Diagnostic[] {
   return diagnostics;
 }
 
+// ─── Combined validation ───
+function validateDocument(doc: TextDocument): Diagnostic[] {
+  // Try syma binary first (real parse errors)
+  const symaDiagnostics = validateWithSyma(doc);
+  if (symaDiagnostics !== null) {
+    return symaDiagnostics;
+  }
+  // Fallback to bracket-only check
+  return validateBrackets(doc);
+}
+
 let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
 
 documents.onDidChangeContent((change) => {
+  if (!globalSettings.diagnosticsEnabled) return;
   if (diagnosticTimer) clearTimeout(diagnosticTimer);
   diagnosticTimer = setTimeout(() => {
     const diagnostics = validateDocument(change.document);
     connection.sendDiagnostics({ uri: change.document.uri, diagnostics });
-  }, 500);
+  }, globalSettings.diagnosticsDelay);
 });
 
 documents.onDidClose((event) => {
@@ -353,44 +462,22 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
 
   const items: CompletionItem[] = [];
 
-  // Keywords
   for (const kw of KEYWORDS) {
-    items.push({
-      label: kw,
-      kind: CompletionItemKind.Keyword,
-      detail: 'keyword',
-    });
+    items.push({ label: kw, kind: CompletionItemKind.Keyword, detail: 'keyword' });
   }
-
-  // Built-in functions
   for (const [name, info] of Object.entries(BUILTINS)) {
     items.push({
       label: name,
       kind: info.kind,
       detail: info.signature,
-      documentation: {
-        kind: MarkupKind.Markdown,
-        value: `**${info.signature}**\n\n${info.doc}`,
-      },
+      documentation: { kind: MarkupKind.Markdown, value: `**${info.signature}**\n\n${info.doc}` },
     });
   }
-
-  // Types
   for (const t of TYPES) {
-    items.push({
-      label: t,
-      kind: CompletionItemKind.TypeParameter,
-      detail: 'type',
-    });
+    items.push({ label: t, kind: CompletionItemKind.TypeParameter, detail: 'type' });
   }
-
-  // Constants
   for (const [name, desc] of Object.entries(CONSTANTS)) {
-    items.push({
-      label: name,
-      kind: CompletionItemKind.Value,
-      detail: desc,
-    });
+    items.push({ label: name, kind: CompletionItemKind.Value, detail: desc });
   }
 
   return items;
@@ -405,11 +492,8 @@ connection.onHover((params: TextDocumentPositionParams): Hover | null => {
   const doc = documents.get(params.textDocument.uri);
   if (!doc) return null;
 
-  // Get word at cursor
   const offset = doc.offsetAt(params.position);
   const text = doc.getText();
-
-  // Find word boundaries
   let start = offset;
   let end = offset;
   while (start > 0 && /\w/.test(text[start - 1])) start--;
@@ -419,56 +503,22 @@ connection.onHover((params: TextDocumentPositionParams): Hover | null => {
 
   const range = Range.create(doc.positionAt(start), doc.positionAt(end));
 
-  // Check builtins
   const builtin = BUILTINS[word];
   if (builtin) {
     return {
-      contents: {
-        kind: MarkupKind.Markdown,
-        value: [
-          '```syma',
-          builtin.signature,
-          '```',
-          '',
-          builtin.doc,
-        ].join('\n'),
-      },
+      contents: { kind: MarkupKind.Markdown, value: ['```syma', builtin.signature, '```', '', builtin.doc].join('\n') },
       range,
     };
   }
-
-  // Check constants
   const constant = CONSTANTS[word];
   if (constant) {
-    return {
-      contents: {
-        kind: MarkupKind.Markdown,
-        value: `**${word}** — ${constant}`,
-      },
-      range,
-    };
+    return { contents: { kind: MarkupKind.Markdown, value: `**${word}** — ${constant}` }, range };
   }
-
-  // Check types
   if (TYPES.includes(word)) {
-    return {
-      contents: {
-        kind: MarkupKind.Markdown,
-        value: `\`${word}\` — Syma type`,
-      },
-      range,
-    };
+    return { contents: { kind: MarkupKind.Markdown, value: `\`${word}\` — Syma type` }, range };
   }
-
-  // Check keywords
   if (KEYWORDS.includes(word)) {
-    return {
-      contents: {
-        kind: MarkupKind.Markdown,
-        value: `\`${word}\` — Syma keyword`,
-      },
-      range,
-    };
+    return { contents: { kind: MarkupKind.Markdown, value: `\`${word}\` — Syma keyword` }, range };
   }
 
   return null;
