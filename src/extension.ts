@@ -1,19 +1,26 @@
 import * as path from 'path';
-import { workspace, ExtensionContext } from 'vscode';
+import * as vscode from 'vscode';
 import {
   LanguageClient,
   LanguageClientOptions,
   ServerOptions,
   TransportKind,
 } from 'vscode-languageclient/node';
+import { SymaDebugSession } from './debugAdapter';
+import { SymaDebugConfigurationProvider } from './debugConfigProvider';
 
 let client: LanguageClient | undefined;
 
-export function activate(context: ExtensionContext): void {
-  // Path to the server module
+class SymaDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptorFactory {
+  createDebugAdapterDescriptor(_session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+    return new vscode.DebugAdapterInlineImplementation(new SymaDebugSession());
+  }
+}
+
+export function activate(context: vscode.ExtensionContext): void {
+  // ── Language Server ──────────────────────────────────────────────────────
   const serverModule = context.asAbsolutePath(path.join('out', 'server.js'));
 
-  // Server options: run the server as a Node.js process
   const serverOptions: ServerOptions = {
     run: { module: serverModule, transport: TransportKind.ipc },
     debug: {
@@ -23,16 +30,14 @@ export function activate(context: ExtensionContext): void {
     },
   };
 
-  // Client options: which documents to sync
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: 'file', language: 'syma' },
                        { scheme: 'untitled', language: 'syma' }],
     synchronize: {
-      fileEvents: workspace.createFileSystemWatcher('**/*.syma'),
+      fileEvents: vscode.workspace.createFileSystemWatcher('**/*.syma'),
     },
   };
 
-  // Create and start the client
   client = new LanguageClient(
     'symaLanguageServer',
     'Syma Language Server',
@@ -41,6 +46,14 @@ export function activate(context: ExtensionContext): void {
   );
 
   client.start();
+
+  // ── Debug Adapter ────────────────────────────────────────────────────────
+  context.subscriptions.push(
+    vscode.debug.registerDebugAdapterDescriptorFactory('syma', new SymaDebugAdapterDescriptorFactory())
+  );
+  context.subscriptions.push(
+    vscode.debug.registerDebugConfigurationProvider('syma', new SymaDebugConfigurationProvider())
+  );
 }
 
 export function deactivate(): Thenable<void> | undefined {
