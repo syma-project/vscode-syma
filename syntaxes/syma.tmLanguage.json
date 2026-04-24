@@ -1,0 +1,430 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicolo-ribaudo/tc39-proposal-scope-mapping/main/schemas/tmlanguage.schema.json",
+  "name": "Syma",
+  "scopeName": "source.syma",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#number" },
+    { "include": "#rule-definition" },
+    { "include": "#class-definition" },
+    { "include": "#module-definition" },
+    { "include": "#function-definition" },
+    { "include": "#match-block" },
+    { "include": "#keywords" },
+    { "include": "#constants" },
+    { "include": "#types" },
+    { "include": "#builtins" },
+    { "include": "#pattern-blank" },
+    { "include": "#operators" },
+    { "include": "#slots" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comment": {
+      "patterns": [
+        {
+          "name": "comment.block.syma",
+          "begin": "\\(\\*",
+          "end": "\\*\\)",
+          "patterns": [
+            { "include": "#comment" }
+          ]
+        }
+      ]
+    },
+
+    "string": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.syma",
+          "begin": "\"",
+          "end": "\"",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.begin.syma" }
+          },
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.string.end.syma" }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.syma",
+              "match": "\\\\(?:[\"\\\\nrt]|u\\{[0-9a-fA-F]+\\})"
+            }
+          ]
+        }
+      ]
+    },
+
+    "number": {
+      "patterns": [
+        {
+          "name": "constant.numeric.complex.syma",
+          "match": "\\b(?:\\d+\\.\\d+|\\d+)(?:[+-](?:\\d+\\.\\d+|\\d+))?I\\b"
+        },
+        {
+          "name": "constant.numeric.real.syma",
+          "match": "\\b\\d+\\.\\d+(?:[eE][+-]?\\d+)?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.syma",
+          "match": "\\b\\d+(?:[eE][+-]?\\d+)?\\b"
+        }
+      ]
+    },
+
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.flow.syma",
+          "match": "\\b(?:If|Which|Switch|For|While|Do)\\b"
+        },
+        {
+          "name": "keyword.control.exception.syma",
+          "match": "\\b(?:try|catch|finally|throw)\\b"
+        },
+        {
+          "name": "keyword.control.match.syma",
+          "match": "\\b(?:match|Function)\\b"
+        },
+        {
+          "name": "keyword.declaration.class.syma",
+          "match": "\\b(?:class|extends|with|mixin)\\b"
+        },
+        {
+          "name": "keyword.declaration.module.syma",
+          "match": "\\b(?:module|import|export|as)\\b"
+        },
+        {
+          "name": "keyword.declaration.member.syma",
+          "match": "\\b(?:method|field|constructor)\\b"
+        },
+        {
+          "name": "keyword.other.rule.syma",
+          "match": "\\b(?:rule)\\b"
+        },
+        {
+          "name": "keyword.other.transform.syma",
+          "match": "@transform\\b"
+        },
+        {
+          "name": "keyword.other.hold.syma",
+          "match": "\\b(?:Hold|HoldComplete|ReleaseHold)\\b"
+        }
+      ]
+    },
+
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.syma",
+          "match": "\\b(?:True|False)\\b"
+        },
+        {
+          "name": "constant.language.null.syma",
+          "match": "\\bNull\\b"
+        },
+        {
+          "name": "constant.language.numeric.syma",
+          "match": "\\b(?:Pi|E|I)\\b"
+        }
+      ]
+    },
+
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.syma",
+          "match": "\\b(?:Integer|Real|Rational|Complex|String|Symbol|Boolean|Number|Atom|List|Rule|RuleDelayed|Pattern|Function|Object|Compound|Expr|Head|TypeOf|MatchQ)\\b"
+        }
+      ]
+    },
+
+    "builtins": {
+      "patterns": [
+        {
+          "name": "support.function.builtin.trig.syma",
+          "match": "\\b(?:Sin|Cos|Tan|ArcSin|ArcCos|ArcTan)\\b"
+        },
+        {
+          "name": "support.function.builtin.math.syma",
+          "match": "\\b(?:Abs|Ceiling|Floor|Round|Mod|Sqrt|Exp|Log|Log2|Log10|Power|Factorial|GCD|LCM)\\b"
+        },
+        {
+          "name": "support.function.builtin.arithmetic.syma",
+          "match": "\\b(?:Plus|Times|Divide|Minus|Sum|Total)\\b"
+        },
+        {
+          "name": "support.function.builtin.calculus.syma",
+          "match": "\\b(?:D|Integrate|Simplify|Expand|Factor|Solve|Series)\\b"
+        },
+        {
+          "name": "support.function.builtin.list.syma",
+          "match": "\\b(?:Length|First|Last|Rest|Most|Append|Prepend|Join|Flatten|Sort|Reverse|Take|Drop|Part|Range|Table|Map|Fold|Select|Scan|Nest|FixedPoint|Count|Position|Tally|PadLeft|PadRight|Riffle|Transpose|Union|Intersection|Complement|MemberQ|FreeQ)\\b"
+        },
+        {
+          "name": "support.function.builtin.string.syma",
+          "match": "\\b(?:StringJoin|StringLength|StringSplit|StringReplace|StringReverse|StringTake|StringDrop|StringContainsQ|ToString|ToExpression|ToLowerCase|ToUpperCase)\\b"
+        },
+        {
+          "name": "support.function.builtin.assoc.syma",
+          "match": "\\b(?:Keys|Values|Lookup|KeyExistsQ)\\b"
+        },
+        {
+          "name": "support.function.builtin.io.syma",
+          "match": "\\b(?:Print|Input|RandomReal|RandomInteger|RandomChoice)\\b"
+        },
+        {
+          "name": "support.function.builtin.logic.syma",
+          "match": "\\b(?:And|Or|Not|Equal|Unequal|Less|Greater|LessEqual|GreaterEqual|Min|Max)\\b"
+        }
+      ]
+    },
+
+    "pattern-blank": {
+      "patterns": [
+        {
+          "name": "variable.other.pattern.sequence.syma",
+          "match": "\\b\\w+___\\b"
+        },
+        {
+          "name": "variable.other.pattern.sequence1.syma",
+          "match": "\\b\\w+__\\b"
+        },
+        {
+          "name": "variable.other.pattern.typed.syma",
+          "match": "\\b\\w+_(?:Integer|Real|Rational|Complex|String|Symbol|Boolean|Number|Atom|List|Rule|RuleDelayed|Pattern|Function|Object|Compound|Expr)\\b"
+        },
+        {
+          "name": "variable.other.pattern.named.syma",
+          "match": "\\b\\w+_\\b"
+        },
+        {
+          "name": "variable.other.pattern.anon.sequence.syma",
+          "match": "(?<!\\w)___(?!\\w)"
+        },
+        {
+          "name": "variable.other.pattern.anon.sequence1.syma",
+          "match": "(?<!\\w)__(?!\\w)"
+        },
+        {
+          "name": "variable.other.pattern.anon.typed.syma",
+          "match": "_(?:Integer|Real|Rational|Complex|String|Symbol|Boolean|Number|Atom|List|Rule|RuleDelayed|Pattern|Function|Object|Compound|Expr)\\b"
+        },
+        {
+          "name": "variable.other.pattern.anon.syma",
+          "match": "(?<!\\w)_(?!\\w)"
+        }
+      ]
+    },
+
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.rule.syma",
+          "match": ":>|->"
+        },
+        {
+          "name": "keyword.operator.replace.syma",
+          "match": "//\\.|/\\."
+        },
+        {
+          "name": "keyword.operator.map.syma",
+          "match": "/@"
+        },
+        {
+          "name": "keyword.operator.apply.syma",
+          "match": "@@"
+        },
+        {
+          "name": "keyword.operator.at.syma",
+          "match": "@"
+        },
+        {
+          "name": "keyword.operator.pipe.syma",
+          "match": "//"
+        },
+        {
+          "name": "keyword.operator.assign.syma",
+          "match": ":="
+        },
+        {
+          "name": "keyword.operator.fat-arrow.syma",
+          "match": "=>"
+        },
+        {
+          "name": "keyword.operator.guard.syma",
+          "match": "/;"
+        },
+        {
+          "name": "keyword.operator.comparison.syma",
+          "match": "==|!=|<=|>=|<|>"
+        },
+        {
+          "name": "keyword.operator.logical.syma",
+          "match": "&&|\\|\\||!"
+        },
+        {
+          "name": "keyword.operator.arithmetic.syma",
+          "match": "\\+|-|\\*|/|\\^"
+        },
+        {
+          "name": "keyword.operator.string-join.syma",
+          "match": "<>"
+        },
+        {
+          "name": "keyword.operator.assign.simple.syma",
+          "match": "="
+        }
+      ]
+    },
+
+    "slots": {
+      "patterns": [
+        {
+          "name": "variable.parameter.slot-numbered.syma",
+          "match": "#\\d+"
+        },
+        {
+          "name": "variable.parameter.slot.syma",
+          "match": "#"
+        }
+      ]
+    },
+
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.bracket.double.syma",
+          "match": "\\[\\[|\\]\\]"
+        },
+        {
+          "name": "punctuation.bracket.assoc.syma",
+          "match": "<\\||\\|>"
+        },
+        {
+          "name": "punctuation.bracket.round.syma",
+          "match": "\\(|\\)"
+        },
+        {
+          "name": "punctuation.bracket.square.syma",
+          "match": "\\[|\\]"
+        },
+        {
+          "name": "punctuation.bracket.curly.syma",
+          "match": "\\{|\\}"
+        },
+        {
+          "name": "punctuation.separator.comma.syma",
+          "match": ","
+        },
+        {
+          "name": "punctuation.terminator.semicolon.syma",
+          "match": ";"
+        },
+        {
+          "name": "punctuation.accessor.dot.syma",
+          "match": "\\."
+        },
+        {
+          "name": "punctuation.definition.quote.syma",
+          "match": "'"
+        },
+        {
+          "name": "punctuation.definition.tilde.syma",
+          "match": "~"
+        }
+      ]
+    },
+
+    "rule-definition": {
+      "patterns": [
+        {
+          "name": "meta.rule-definition.syma",
+          "match": "\\b(rule)\\b\\s+(\\w+)\\s*(=)",
+          "captures": {
+            "1": { "name": "keyword.other.rule.syma" },
+            "2": { "name": "entity.name.type.rule.syma" },
+            "3": { "name": "keyword.operator.assign.simple.syma" }
+          }
+        }
+      ]
+    },
+
+    "class-definition": {
+      "patterns": [
+        {
+          "name": "meta.class-definition.syma",
+          "match": "\\b(class)\\b\\s+(\\w+)",
+          "captures": {
+            "1": { "name": "keyword.declaration.class.syma" },
+            "2": { "name": "entity.name.type.class.syma" }
+          }
+        },
+        {
+          "name": "meta.mixin-definition.syma",
+          "match": "\\b(mixin)\\b\\s+(\\w+)",
+          "captures": {
+            "1": { "name": "keyword.declaration.class.syma" },
+            "2": { "name": "entity.name.type.class.syma" }
+          }
+        }
+      ]
+    },
+
+    "module-definition": {
+      "patterns": [
+        {
+          "name": "meta.module-definition.syma",
+          "match": "\\b(module)\\b\\s+(\\w+)",
+          "captures": {
+            "1": { "name": "keyword.declaration.module.syma" },
+            "2": { "name": "entity.name.type.module.syma" }
+          }
+        },
+        {
+          "name": "meta.import.syma",
+          "match": "\\b(import)\\b\\s+([\\w.]+(?:\\s*\\.\\s*\\{[^}]*\\})?)\\s*(?:(as)\\s+(\\w+))?",
+          "captures": {
+            "1": { "name": "keyword.declaration.module.syma" },
+            "2": { "name": "entity.name.type.module.syma" },
+            "3": { "name": "keyword.declaration.module.syma" },
+            "4": { "name": "entity.name.type.module.alias.syma" }
+          }
+        },
+        {
+          "name": "meta.export.syma",
+          "match": "\\b(export)\\b",
+          "captures": {
+            "1": { "name": "keyword.declaration.module.syma" }
+          }
+        }
+      ]
+    },
+
+    "function-definition": {
+      "patterns": [
+        {
+          "name": "meta.function-definition.syma",
+          "match": "\\b([a-z]\\w*)\\s*(?=\\[)",
+          "captures": {
+            "1": { "name": "entity.name.function.syma" }
+          }
+        }
+      ]
+    },
+
+    "match-block": {
+      "patterns": [
+        {
+          "name": "keyword.control.match.syma",
+          "match": "\\bmatch\\b"
+        },
+        {
+          "name": "keyword.operator.match-arrow.syma",
+          "match": "=>"
+        }
+      ]
+    }
+  }
+}

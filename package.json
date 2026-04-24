@@ -1,0 +1,48 @@
+{
+  "name": "vscode-syma",
+  "displayName": "Syma Language Support",
+  "description": "Syntax highlighting and language support for the Syma symbolic programming language",
+  "version": "0.1.0",
+  "publisher": "syma",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://code.tanganke.com/syma/vscode-syma"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "syma",
+    "symbolic",
+    "wolfram",
+    "mathematica",
+    "pattern-matching",
+    "language"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "syma",
+        "aliases": [
+          "Syma",
+          "syma"
+        ],
+        "extensions": [
+          ".syma"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "syma",
+        "scopeName": "source.syma",
+        "path": "./syntaxes/syma.tmLanguage.json"
+      }
+    ]
+  }
+}
