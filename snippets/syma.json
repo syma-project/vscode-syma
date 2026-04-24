@@ -1,0 +1,220 @@
+{
+  "Class Definition": {
+    "prefix": "class",
+    "body": [
+      "class ${1:ClassName} {",
+      "\tfield ${2:fieldName}",
+      "",
+      "\tconstructor[${3:args}] {",
+      "\t\t${4:// initialization}",
+      "\t}",
+      "",
+      "\tmethod ${5:methodName}[${6:args}] := ${7:body}",
+      "}"
+    ],
+    "description": "Define a new class with field, constructor, and method"
+  },
+  "Class with Inheritance": {
+    "prefix": "class-extends",
+    "body": [
+      "class ${1:Child} extends ${2:Parent} {",
+      "\tfield ${3:fieldName}",
+      "",
+      "\tconstructor[${4:args}] {",
+      "\t\t${5:// initialization}",
+      "\t}",
+      "",
+      "\tmethod ${6:methodName}[${7:args}] := ${8:body}",
+      "}"
+    ],
+    "description": "Define a class that extends a parent class"
+  },
+  "Mixin": {
+    "prefix": "mixin",
+    "body": [
+      "mixin ${1:MixinName} {",
+      "\tmethod ${2:methodName}[${3:args}] := ${4:body}",
+      "}"
+    ],
+    "description": "Define a mixin (class without constructor)"
+  },
+  "Module": {
+    "prefix": "module",
+    "body": [
+      "module ${1:ModuleName} {",
+      "\texport ${2:symbols}",
+      "",
+      "\t${3:// module contents}",
+      "}"
+    ],
+    "description": "Define a module with exports"
+  },
+  "Import": {
+    "prefix": "import",
+    "body": [
+      "import ${1:ModuleName}"
+    ],
+    "description": "Import a module"
+  },
+  "Import Selective": {
+    "prefix": "import-select",
+    "body": [
+      "import ${1:ModuleName}.{${2:symbols}}"
+    ],
+    "description": "Import specific symbols from a module"
+  },
+  "Import Alias": {
+    "prefix": "import-alias",
+    "body": [
+      "import ${1:ModuleName} as ${2:alias}"
+    ],
+    "description": "Import a module with an alias"
+  },
+  "Rule Definition": {
+    "prefix": "rule",
+    "body": [
+      "rule ${1:ruleName} = {",
+      "\t${2:pattern} -> ${3:replacement}",
+      "}"
+    ],
+    "description": "Define a rewrite rule set"
+  },
+  "Function Definition": {
+    "prefix": "func",
+    "body": [
+      "${1:name}[${2:args}] := ${3:body}"
+    ],
+    "description": "Define a function with pattern matching"
+  },
+  "Function Typed": {
+    "prefix": "func-typed",
+    "body": [
+      "${1:name}[${2:x}_${3:Type}] := ${4:body}"
+    ],
+    "description": "Define a function with type-constrained argument"
+  },
+  "Function Guarded": {
+    "prefix": "func-guard",
+    "body": [
+      "${1:name}[${2:x} /; ${3:condition}] := ${4:body}"
+    ],
+    "description": "Define a function with a guard condition"
+  },
+  "Match Expression": {
+    "prefix": "match",
+    "body": [
+      "match ${1:expr} {",
+      "\t${2:pattern} => ${3:result}",
+      "\t_ => ${4:default}",
+      "}"
+    ],
+    "description": "Pattern match expression"
+  },
+  "If Expression": {
+    "prefix": "if",
+    "body": [
+      "If[${1:condition}, ${2:then}, ${3:else}]"
+    ],
+    "description": "Conditional expression"
+  },
+  "Which Expression": {
+    "prefix": "which",
+    "body": [
+      "Which[",
+      "\t${1:cond1}, ${2:result1},",
+      "\t${3:cond2}, ${4:result2},",
+      "\tTrue, ${5:default}",
+      "]"
+    ],
+    "description": "Multi-branch conditional"
+  },
+  "Switch Expression": {
+    "prefix": "switch",
+    "body": [
+      "Switch[${1:expr},",
+      "\t${2:pattern1}, ${3:result1},",
+      "\t${4:pattern2}, ${5:result2},",
+      "\t_, ${6:default}",
+      "]"
+    ],
+    "description": "Switch on expression type"
+  },
+  "For Loop": {
+    "prefix": "for",
+    "body": [
+      "For[${1:i} = ${2:1}, ${1:i} <= ${3:10}, ${1:i}++,",
+      "\t${4:body}",
+      "]"
+    ],
+    "description": "For loop"
+  },
+  "While Loop": {
+    "prefix": "while",
+    "body": [
+      "While[${1:condition},",
+      "\t${2:body}",
+      "]"
+    ],
+    "description": "While loop"
+  },
+  "Do Loop": {
+    "prefix": "do",
+    "body": [
+      "Do[${1:body}, {${2:i}, ${3:1}, ${4:10}}]"
+    ],
+    "description": "Do loop with iterator"
+  },
+  "Try/Catch": {
+    "prefix": "try",
+    "body": [
+      "try {",
+      "\t${1:risky}",
+      "} catch ${2:err} {",
+      "\tmatch ${2:err} {",
+      "\t\te_SymError => ${3:handle}",
+      "\t\t_ => ${4:default}",
+      "\t}",
+      "}"
+    ],
+    "description": "Try/catch exception handling"
+  },
+  "Pure Function": {
+    "prefix": "lambda",
+    "body": [
+      "(${1:#^2} &)"
+    ],
+    "description": "Pure function (lambda)"
+  },
+  "Association": {
+    "prefix": "assoc",
+    "body": [
+      "<|${1:\"key\"} -> ${2:value}|>"
+    ],
+    "description": "Association (hash map) literal"
+  },
+  "List Comprehension": {
+    "prefix": "table",
+    "body": [
+      "Table[${1:expr}, {${2:i}, ${3:1}, ${4:n}}]"
+    ],
+    "description": "Generate a list with Table"
+  },
+  "Transform Decorator": {
+    "prefix": "transform",
+    "body": [
+      "@transform ${1:name} {",
+      "\t${2:pattern} :> ${3:replacement}",
+      "}"
+    ],
+    "description": "Define a class transform method"
+  },
+  "Region Fold": {
+    "prefix": "region",
+    "body": [
+      "(* region ${1:name} *)",
+      "${2:// code}",
+      "(* endregion *)"
+    ],
+    "description": "Foldable region marker"
+  }
+}

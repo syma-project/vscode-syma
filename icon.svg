@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2d1f5e"/>
+      <stop offset="100%" style="stop-color:#1a1040"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#c084fc"/>
+      <stop offset="100%" style="stop-color:#818cf8"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect x="4" y="4" width="120" height="120" rx="24" ry="24" fill="url(#bg)"/>
+  <!-- Bracket [ -->
+  <path d="M30 28 L20 28 L20 100 L30 100" fill="none" stroke="url(#accent)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Bracket ] -->
+  <path d="M98 28 L108 28 L108 100 L98 100" fill="none" stroke="url(#accent)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Stylized S -->
+  <path d="M72 36 C72 36 82 32 78 46 C74 60 54 56 54 70 C54 84 64 88 64 88 C64 88 50 92 56 80" fill="none" stroke="#e0e7ff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Dot accent -->
+  <circle cx="68" cy="64" r="5" fill="#c084fc" opacity="0.8"/>
+</svg>

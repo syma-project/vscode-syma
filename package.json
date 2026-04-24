@@ -1,8 +1,8 @@
 {
   "name": "vscode-syma",
   "displayName": "Syma Language Support",
-  "description": "Syntax highlighting and language support for the Syma symbolic programming language",
-  "version": "0.1.0",
+  "description": "Syntax highlighting, snippets, and language intelligence for the Syma symbolic programming language",
+  "version": "0.2.0",
   "publisher": "syma",
   "license": "MIT",
   "repository": {
@@ -22,6 +22,11 @@
     "mathematica",
     "pattern-matching",
     "language"
+  ],
+  "icon": "icon.png",
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:syma"
   ],
   "contributes": {
     "languages": [
@@ -43,6 +48,58 @@
         "scopeName": "source.syma",
         "path": "./syntaxes/syma.tmLanguage.json"
       }
-    ]
+    ],
+    "snippets": [
+      {
+        "language": "syma",
+        "path": "./snippets/syma.json"
+      }
+    ],
+    "configuration": {
+      "title": "Syma",
+      "properties": {
+        "syma.server.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Syma language server binary (optional, uses bundled server by default)"
+        },
+        "syma.server.trace": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Trace communication between VS Code and the Syma language server"
+        },
+        "syma.diagnostics.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable syntax diagnostics from the language server"
+        },
+        "syma.diagnostics.delay": {
+          "type": "integer",
+          "default": 500,
+          "description": "Delay (ms) before running diagnostics after a change"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.0",
+    "vscode-languageserver": "^9.0.0",
+    "vscode-languageserver-textdocument": "^1.0.0"
   }
 }
