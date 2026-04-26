@@ -85,7 +85,7 @@
         },
         {
           "name": "keyword.control.match.syma",
-          "match": "\\b(?:match|Condition|Function)\\b"
+          "match": "\\b(?:match|Condition)\\b"
         },
         {
           "name": "keyword.declaration.class.syma",
@@ -189,6 +189,7 @@
         {
           "name": "support.function.builtin.attribute.syma",
           "match": "\\b(?:Flat|Listable|Orderless|OneIdentity|HoldAll|HoldAllComplete|NumericFunction)\\b"
+        }
       ]
     },
 

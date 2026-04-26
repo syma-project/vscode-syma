@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as fs from 'fs';
 import * as vscode from 'vscode';
 import {
   LanguageClient,
@@ -10,6 +11,7 @@ import { SymaDebugSession } from './debugAdapter';
 import { SymaDebugConfigurationProvider } from './debugConfigProvider';
 
 let client: LanguageClient | undefined;
+let terminal: vscode.Terminal | undefined;
 
 class SymaDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptorFactory {
   createDebugAdapterDescriptor(_session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
@@ -19,6 +21,17 @@ class SymaDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptor
 
 // ── CodeLens Provider ──────────────────────────────────────────────────────
 class SymaCodeLensProvider implements vscode.CodeLensProvider {
+  private _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
+  readonly onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
+
+  refresh(): void {
+    this._onDidChangeCodeLenses.fire();
+  }
+
+  dispose(): void {
+    this._onDidChangeCodeLenses.dispose();
+  }
+
   provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
     const text = document.getText();
     if (!text.trim()) return [];
@@ -42,17 +55,19 @@ class SymaDocumentLinkProvider implements vscode.DocumentLinkProvider {
     const docDir = path.dirname(document.uri.fsPath);
 
     // Match: `import ModuleName` or `import ModuleName.Submodule` or `import ModuleName as Alias`
-    const importRegex = /^import\s+([\w.]+)(?:\s+as\s+\w+)?/gm;
+    const importRegex = /^[\s]*import\s+([\w.]+)(?:\s+as\s+\w+)?/gm;
     let match: RegExpExecArray | null;
     while ((match = importRegex.exec(text)) !== null) {
       const modulePath = match[1].replace(/\./g, '/');
       const moduleName = match[1];
-      const startPos = document.positionAt(match.index + match[0].indexOf(moduleName));
-      const endPos = document.positionAt(match.index + match[0].indexOf(moduleName) + moduleName.length);
+      const matchModuleIndex = match[0].indexOf(moduleName);
+      const startPos = document.positionAt(match.index + matchModuleIndex);
+      const endPos = document.positionAt(match.index + matchModuleIndex + moduleName.length);
 
       const linkRange = new vscode.Range(startPos, endPos);
-      const target = vscode.Uri.file(path.join(docDir, `${modulePath}.syma`));
-      links.push(new vscode.DocumentLink(linkRange, target));
+      const targetPath = path.join(docDir, `${modulePath}.syma`);
+      if (!fs.existsSync(targetPath)) continue;
+      links.push(new vscode.DocumentLink(linkRange, vscode.Uri.file(targetPath)));
     }
 
     return links;
@@ -70,7 +85,9 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       const symaPath = vscode.workspace.getConfiguration('syma')
         .get<string>('server.path', 'syma') || 'syma';
-      const terminal = vscode.window.createTerminal('Syma Run');
+      if (!terminal || terminal.exitStatus !== undefined) {
+        terminal = vscode.window.createTerminal('Syma Run');
+      }
       terminal.sendText(`"${symaPath}" "${editor.document.uri.fsPath}"`);
       terminal.show();
     })
@@ -89,8 +106,20 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   // ── CodeLens ───────────────────────────────────────────────────────────────
+  const codeLensProvider = new SymaCodeLensProvider();
   context.subscriptions.push(
-    vscode.languages.registerCodeLensProvider('syma', new SymaCodeLensProvider())
+    vscode.languages.registerCodeLensProvider('syma', codeLensProvider)
+  );
+  context.subscriptions.push(codeLensProvider);
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeTextDocument((e) => {
+      if (e.document.languageId === 'syma') codeLensProvider.refresh();
+    })
+  );
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor((e) => {
+      if (e?.document.languageId === 'syma') codeLensProvider.refresh();
+    })
   );
 
   // ── Document Links ─────────────────────────────────────────────────────────

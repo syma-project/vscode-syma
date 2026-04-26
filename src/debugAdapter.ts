@@ -92,6 +92,7 @@ export class SymaDebugSession extends DebugSession {
     | undefined;
   private lastLaunchArgs: SymaLaunchRequestArguments | undefined;
   private lastErrorMessage: string | undefined;
+  private launchResponse: DebugProtocol.LaunchResponse | undefined;
 
   public constructor() {
     super();
@@ -175,11 +176,14 @@ export class SymaDebugSession extends DebugSession {
       });
 
       this.process.on('error', (err) => {
-        this.sendErrorResponse(response, 0, `Failed to start syma: ${err.message}`);
+        if (!this.launchResponse) {
+          this.sendErrorResponse(response, 0, `Failed to start syma: ${err.message}`);
+        }
       });
 
       this.sendEvent(new InitializedEvent());
-      this.sendResponse(response);
+      // Defer launch response until process sends 'initialized' event
+      this.launchResponse = response;
     } catch (err: any) {
       this.sendErrorResponse(response, 0, `Failed to start syma: ${err.message}`);
     }
@@ -322,18 +326,17 @@ export class SymaDebugSession extends DebugSession {
     this.sendResponse(response);
   }
 
-  protected restartRequest(
+  protected async restartRequest(
     response: DebugProtocol.RestartResponse,
     _args: DebugProtocol.RestartArguments,
-  ): void {
+  ): Promise<void> {
     if (this.process) {
       this.sendCommand({ command: 'stop' });
       this.process.kill();
       this.process = undefined;
     }
     if (this.lastLaunchArgs) {
-      // Re-launch by calling launchRequest with stored args
-      this.launchRequest(response as unknown as DebugProtocol.LaunchResponse, this.lastLaunchArgs);
+      await this.launchRequest(response as unknown as DebugProtocol.LaunchResponse, this.lastLaunchArgs);
     } else {
       this.sendResponse(response);
     }
@@ -380,7 +383,11 @@ export class SymaDebugSession extends DebugSession {
         this.sendEvent(new StoppedEvent('exception', SymaDebugSession.THREAD_ID));
         break;
       case 'initialized':
-        // Debug session initialized
+        // Deferred: send launch response once process confirms readiness
+        if (this.launchResponse) {
+          this.sendResponse(this.launchResponse);
+          this.launchResponse = undefined;
+        }
         break;
     }
   }

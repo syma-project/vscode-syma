@@ -35,6 +35,12 @@ import { execSync } from 'child_process';
 import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 
+const SOURCE_NAME = 'syma';
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // ─── Connection ───
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
@@ -215,8 +221,6 @@ const BUILTINS: Record<string, { signature: string; doc: string; kind: Completio
   'HoldAll':        { signature: 'HoldAll', doc: 'Attribute: hold all arguments unevaluated', kind: CompletionItemKind.Property },
   'HoldAllComplete': { signature: 'HoldAllComplete', doc: 'Attribute: hold all args, ignore HoldRelease', kind: CompletionItemKind.Property },
   'NumericFunction': { signature: 'NumericFunction', doc: 'Attribute: function is numeric', kind: CompletionItemKind.Property },
-  // Constants / types used as builtins
-  'Alice':  { signature: 'Alice', doc: 'Test constant', kind: CompletionItemKind.Value },
 };
 
 // ─── Keywords ───
@@ -238,8 +242,8 @@ const TYPES = [
   'Integer', 'Real', 'Rational', 'Complex',
   'String', 'Symbol', 'Boolean', 'Number', 'Atom',
   'List', 'Rule', 'RuleDelayed', 'Pattern',
-  'Function', 'Object', 'Compound', 'Expr',
-  'Assoc', 'Error',
+  'Object', 'Compound', 'Expr',
+  'Assoc',
 ];
 
 // ─── Constants ───
@@ -250,6 +254,7 @@ const CONSTANTS: Record<string, string> = {
   'Pi':    '3.14159265358979... (π)',
   'E':     '2.71828182845904... (Euler\'s number)',
   'I':     'Imaginary unit (√-1)',
+  'Alice': 'Test constant',
 };
 
 // ─── Initialize ───
@@ -258,7 +263,7 @@ connection.onInitialize((_params: InitializeParams): InitializeResult => {
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Incremental,
       completionProvider: {
-        resolveProvider: true,
+        resolveProvider: false,
         triggerCharacters: ['.', '[', ','],
       },
       hoverProvider: true,
@@ -322,7 +327,7 @@ function validateWithSyma(doc: TextDocument): Diagnostic[] | null {
             Math.max(0, lineNum), Math.max(0, colNum + 1)
           ),
           message,
-          source: 'syma',
+          source: SOURCE_NAME,
         });
       }
       // Also match: "Error: line:col: message" (eval errors)
@@ -338,7 +343,7 @@ function validateWithSyma(doc: TextDocument): Diagnostic[] | null {
             Math.max(0, lineNum), Math.max(0, colNum + 1)
           ),
           message,
-          source: 'syma',
+          source: SOURCE_NAME,
         });
       }
     }
@@ -356,6 +361,9 @@ function validateBrackets(doc: TextDocument): Diagnostic[] {
   let inString = false;
   let inComment = 0;
   let i = 0;
+
+  const closingMap: Record<string, string> = { ')': '(', ']': '[', '}': '{' };
+  const closeMap: Record<string, string> = { '(': ')', '[': ']', '{': '}', '[[': ']]', '<|': '|>' };
 
   while (i < text.length) {
     if (!inString && text[i] === '(' && i + 1 < text.length && text[i + 1] === '*') {
@@ -392,7 +400,7 @@ function validateBrackets(doc: TextDocument): Diagnostic[] {
           severity: DiagnosticSeverity.Error,
           range: Range.create(doc.positionAt(i), doc.positionAt(i + 2)),
           message: 'Unmatched ]]',
-          source: 'syma',
+          source: SOURCE_NAME,
         });
       }
       i += 2; continue;
@@ -408,7 +416,7 @@ function validateBrackets(doc: TextDocument): Diagnostic[] {
           severity: DiagnosticSeverity.Error,
           range: Range.create(doc.positionAt(i), doc.positionAt(i + 2)),
           message: 'Unmatched |>',
-          source: 'syma',
+          source: SOURCE_NAME,
         });
       }
       i += 2; continue;
@@ -417,7 +425,6 @@ function validateBrackets(doc: TextDocument): Diagnostic[] {
     if (ch === '(' || ch === '[' || ch === '{') {
       bracketStack.push({ char: ch, pos: i }); i++; continue;
     }
-    const closingMap: Record<string, string> = { ')': '(', ']': '[', '}': '{' };
     if (ch === ')' || ch === ']' || ch === '}') {
       const expected = closingMap[ch];
       if (bracketStack.length > 0 && bracketStack[bracketStack.length - 1].char === expected) {
@@ -427,7 +434,7 @@ function validateBrackets(doc: TextDocument): Diagnostic[] {
           severity: DiagnosticSeverity.Error,
           range: Range.create(doc.positionAt(i), doc.positionAt(i + 1)),
           message: `Unmatched ${ch}`,
-          source: 'syma',
+          source: SOURCE_NAME,
         });
       }
       i++; continue;
@@ -440,7 +447,7 @@ function validateBrackets(doc: TextDocument): Diagnostic[] {
       severity: DiagnosticSeverity.Error,
       range: Range.create(doc.positionAt(text.length - 1), doc.positionAt(text.length)),
       message: 'Unterminated string',
-      source: 'syma',
+      source: SOURCE_NAME,
     });
   }
   if (inComment > 0) {
@@ -448,16 +455,15 @@ function validateBrackets(doc: TextDocument): Diagnostic[] {
       severity: DiagnosticSeverity.Warning,
       range: Range.create(doc.positionAt(text.length - 1), doc.positionAt(text.length)),
       message: `Unterminated block comment (${inComment} level${inComment > 1 ? 's' : ''} deep)`,
-      source: 'syma',
+      source: SOURCE_NAME,
     });
   }
   for (const b of bracketStack) {
-    const close: Record<string, string> = { '(': ')', '[': ']', '{': '}', '[[': ']]', '<|': '|>' };
     diagnostics.push({
       severity: DiagnosticSeverity.Error,
       range: Range.create(doc.positionAt(b.pos), doc.positionAt(b.pos + b.char.length)),
-      message: `Unmatched ${b.char} (missing ${close[b.char]})`,
-      source: 'syma',
+      message: `Unmatched ${b.char} (missing ${closeMap[b.char]})`,
+      source: SOURCE_NAME,
     });
   }
 
@@ -490,18 +496,35 @@ documents.onDidClose((event) => {
   connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] });
 });
 
+documents.onDidOpen((event) => {
+  if (!globalSettings.diagnosticsEnabled) return;
+  const diagnostics = validateDocument(event.document);
+  connection.sendDiagnostics({ uri: event.document.uri, diagnostics });
+});
+
 // ─── Completions ───
 connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] => {
   const doc = documents.get(params.textDocument.uri);
   if (!doc) return [];
 
+  // Extract prefix from word before cursor
+  const offset = doc.offsetAt(params.position);
+  const text = doc.getText();
+  let start = offset;
+  while (start > 0 && /\w/.test(text[start - 1])) start--;
+  const prefix = text.substring(start, offset).toLowerCase();
+
+  function matches(label: string): boolean {
+    return label.toLowerCase().startsWith(prefix);
+  }
+
   const items: CompletionItem[] = [];
 
   for (const kw of KEYWORDS) {
-    items.push({ label: kw, kind: CompletionItemKind.Keyword, detail: 'keyword' });
+    if (matches(kw)) items.push({ label: kw, kind: CompletionItemKind.Keyword, detail: 'keyword' });
   }
   for (const [name, info] of Object.entries(BUILTINS)) {
-    items.push({
+    if (matches(name)) items.push({
       label: name,
       kind: info.kind,
       detail: info.signature,
@@ -509,18 +532,16 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
     });
   }
   for (const t of TYPES) {
-    items.push({ label: t, kind: CompletionItemKind.TypeParameter, detail: 'type' });
+    if (matches(t)) items.push({ label: t, kind: CompletionItemKind.TypeParameter, detail: 'type' });
   }
   for (const [name, desc] of Object.entries(CONSTANTS)) {
-    items.push({ label: name, kind: CompletionItemKind.Value, detail: desc });
+    if (matches(name)) items.push({ label: name, kind: CompletionItemKind.Value, detail: desc });
   }
 
   return items;
 });
 
-connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
-  return item;
-});
+// onCompletionResolve not needed (resolveProvider: false)
 
 // ─── Hover ───
 connection.onHover((params: TextDocumentPositionParams): Hover | null => {
@@ -573,15 +594,6 @@ connection.onDocumentSymbol((params: DocumentSymbolParams): DocumentSymbol[] => 
   const text = doc.getText();
   const lines = text.split('\n');
   const symbols: DocumentSymbol[] = [];
-
-  function addSymbol(name: string, kind: SymbolKind, lineIndex: number, detail: string, children?: DocumentSymbol[]): void {
-    const range = Range.create(lineIndex, 0, lineIndex, lines[lineIndex].length);
-    const selRange = Range.create(lineIndex, text.indexOf(name, lines.slice(0, lineIndex).join('\n').length + (lineIndex > 0 ? 1 : 0)), lineIndex, lineIndex); // fallback below
-    // Better: compute name start column from the line
-    const col = lines[lineIndex].indexOf(name);
-    const nameRange = Range.create(lineIndex, col >= 0 ? col : 0, lineIndex, (col >= 0 ? col : 0) + name.length);
-    symbols.push(DocumentSymbol.create(name, detail, kind, range, nameRange, children));
-  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -688,19 +700,19 @@ connection.onDefinition((params: DefinitionParams): Location | null => {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     // class Name, mixin Name, module Name
-    let m = line.match(new RegExp(`^(class|mixin|module)\\s+(${word})\\b`));
+    let m = line.match(new RegExp(`^(class|mixin|module)\\s+(${escapeRegex(word)})\\b`));
     if (m) {
       const col = line.indexOf(word);
       return { uri: params.textDocument.uri, range: Range.create(i, col, i, col + word.length) };
     }
     // rule name =
-    m = line.match(new RegExp(`^rule\\s+(${word})\\s*=`));
+    m = line.match(new RegExp(`^rule\\s+(${escapeRegex(word)})\\s*=`));
     if (m) {
       const col = line.indexOf(word);
       return { uri: params.textDocument.uri, range: Range.create(i, col, i, col + word.length) };
     }
     // name[ (function definition)
-    m = line.match(new RegExp(`^(${word})\\s*\\[`));
+    m = line.match(new RegExp(`^(${escapeRegex(word)})\\s*\\[`));
     if (m) {
       const col = line.indexOf(word);
       return { uri: params.textDocument.uri, range: Range.create(i, col, i, col + word.length) };
@@ -729,8 +741,16 @@ connection.languages.semanticTokens.on((params: SemanticTokensParams): SemanticT
 
   // Track context for next word
   let prevKeyword: string | null = null;
-  let inClassBody = false;
-  let braceDepth = 0;
+
+  // Incremental line tracking
+  let line = 0;
+  let lastNewline = -1;
+
+  // Precompute line starts for isLineStart check
+  const lineStarts: number[] = [0];
+  for (let j = 0; j < text.length; j++) {
+    if (text[j] === '\n') lineStarts.push(j + 1);
+  }
 
   while (i < text.length) {
     // Skip comments
@@ -750,10 +770,6 @@ connection.languages.semanticTokens.on((params: SemanticTokensParams): SemanticT
       i++; continue;
     }
 
-    // Track brace depth for class body detection
-    if (text[i] === '{') { braceDepth++; inClassBody = braceDepth > 0; i++; continue; }
-    if (text[i] === '}') { braceDepth--; inClassBody = braceDepth > 0; i++; continue; }
-
     // Check for word start
     if (/\w/.test(text[i])) {
       const wordStart = i;
@@ -761,8 +777,8 @@ connection.languages.semanticTokens.on((params: SemanticTokensParams): SemanticT
       const word = text.substring(wordStart, i);
 
       // Check if the line starts with this word (definition patterns)
-      const lineStart = text.lastIndexOf('\n', wordStart - 1) + 1;
-      const isLineStart = wordStart === lineStart || /^\s+$/.test(text.substring(lineStart, wordStart));
+      const lineStart = lineStarts[line];
+      const isLineStart = wordStart === lineStart || (wordStart > lineStart && /^\s+$/.test(text.substring(lineStart, wordStart)));
 
       let tokenType = T.variable;
       let tokenModifier = 0;
@@ -796,8 +812,8 @@ connection.languages.semanticTokens.on((params: SemanticTokensParams): SemanticT
         tokenModifier = M.declaration;
       }
 
-      builder.push(wordStart === 0 ? 0 : text.substring(0, wordStart).split('\n').length - 1,
-                   wordStart - text.lastIndexOf('\n', wordStart - 1) - 1,
+      builder.push(line,
+                   wordStart - lastNewline - 1,
                    word.length, tokenType, tokenModifier);
 
       // Track keyword context for next word
@@ -813,6 +829,10 @@ connection.languages.semanticTokens.on((params: SemanticTokensParams): SemanticT
         prevKeyword = null;
       }
     } else {
+      if (text[i] === '\n') {
+        line++;
+        lastNewline = i;
+      }
       i++;
     }
   }
@@ -849,7 +869,7 @@ connection.onCodeAction((params: CodeActionParams): CodeAction[] => {
     }
 
     // Unmatched closing bracket: offer to remove it
-    const closeMatch = diagnostic.message.match(/^Unmatched (\)|\]|\}|>>?)$/);
+    const closeMatch = diagnostic.message.match(/^Unmatched (\)|\]|\}|>>?|]]|\|>)$/);
     if (closeMatch) {
       actions.push({
         title: `Remove ${closeMatch[1]}`,
@@ -940,20 +960,21 @@ connection.onSignatureHelp((params: SignatureHelpParams): SignatureHelp | null =
   const text = doc.getText();
   const offset = doc.offsetAt(params.position);
 
-  // Walk backwards from cursor to find function name before '('
-  let depth = 0;
+  // Walk backwards from cursor to find function name before '['
+  // Use separate squareDepth to handle nested brackets correctly
+  let squareDepth = 0;
   let funcEnd = -1;
 
   for (let i = offset - 1; i >= 0; i--) {
     const ch = text[i];
-    if (ch === ')' || ch === ']' || ch === '}') {
-      depth++;
-    } else if (ch === '(' || ch === '[' || ch === '{') {
-      if (depth === 0) {
+    if (ch === ']') {
+      squareDepth++;
+    } else if (ch === '[') {
+      if (squareDepth === 0) {
         funcEnd = i;
         break;
       }
-      depth--;
+      squareDepth--;
     }
   }
 

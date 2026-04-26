@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VS Code extension providing syntax highlighting, LSP intelligence, snippets, and **debugging** for the **Syma** symbolic programming language (inspired by Wolfram Language). The Syma interpreter itself is a separate Rust project at `/Users/tanganke/Desktop/projects/syma/syma`.
+VS Code extension providing syntax highlighting, LSP intelligence, snippets, and **debugging** for the **Syma** symbolic programming language (inspired by Wolfram Language). The Syma interpreter itself is a separate Rust project at `/Users/tanganke/Desktop/projects/syma-project`.
 
 ## Build & Development Commands
 

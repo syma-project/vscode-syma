@@ -181,7 +181,7 @@
   "Pure Function": {
     "prefix": "lambda",
     "body": [
-      "(${1:#^2} &)"
+      "(${1:#} &)"
     ],
     "description": "Pure function (lambda)"
   },
