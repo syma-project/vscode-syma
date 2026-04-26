@@ -9,7 +9,6 @@
     { "include": "#rule-definition" },
     { "include": "#class-definition" },
     { "include": "#module-definition" },
-    { "include": "#function-definition" },
     { "include": "#match-block" },
     { "include": "#keywords" },
     { "include": "#constants" },
@@ -18,7 +17,8 @@
     { "include": "#pattern-blank" },
     { "include": "#operators" },
     { "include": "#slots" },
-    { "include": "#punctuation" }
+    { "include": "#punctuation" },
+    { "include": "#function-definition" }
   ],
   "repository": {
     "comment": {
