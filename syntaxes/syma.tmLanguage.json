@@ -135,7 +135,7 @@
       "patterns": [
         {
           "name": "support.type.syma",
-          "match": "\\b(?:Integer|Real|Rational|Complex|String|Symbol|Boolean|Number|Atom|List|Rule|RuleDelayed|Pattern|Function|Object|Compound|Expr|Assoc|Error)\\b"
+          "match": "\\b(?:Integer|Real|Rational|Complex|String|Symbol|Boolean|Number|Atom|List|Rule|RuleDelayed|Pattern|Function|Object|Compound|Expr|Assoc)\\b"
         }
       ]
     },
@@ -311,35 +311,35 @@
           "match": "<\\||\\|>"
         },
         {
-          "name": "punctuation.bracket.round",
+          "name": "punctuation.bracket.round.syma",
           "match": "\\(|\\)"
         },
         {
-          "name": "punctuation.bracket.square",
+          "name": "punctuation.bracket.square.syma",
           "match": "\\[|\\]"
         },
         {
-          "name": "punctuation.bracket.curly",
+          "name": "punctuation.bracket.curly.syma",
           "match": "\\{|\\}"
         },
         {
-          "name": "punctuation.separator.comma",
+          "name": "punctuation.separator.comma.syma",
           "match": ","
         },
         {
-          "name": "punctuation.terminator.semicolon",
+          "name": "punctuation.terminator.semicolon.syma",
           "match": ";"
         },
         {
-          "name": "punctuation.accessor.dot",
+          "name": "punctuation.accessor.dot.syma",
           "match": "\\."
         },
         {
-          "name": "punctuation.definition.quote",
+          "name": "punctuation.definition.quote.syma",
           "match": "'"
         },
         {
-          "name": "punctuation.definition.tilde",
+          "name": "punctuation.definition.tilde.syma",
           "match": "~"
         }
       ]

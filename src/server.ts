@@ -29,6 +29,9 @@ import {
   CodeAction,
   CodeActionKind,
   CodeActionParams,
+  FoldingRange,
+  FoldingRangeKind,
+  FoldingRangeParams,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { execSync } from 'child_process';
@@ -286,6 +289,7 @@ connection.onInitialize((_params: InitializeParams): InitializeResult => {
       codeActionProvider: {
         codeActionKinds: [CodeActionKind.QuickFix],
       },
+      foldingRangeProvider: true,
     },
   };
 });
@@ -632,6 +636,15 @@ connection.onDocumentSymbol((params: DocumentSymbolParams): DocumentSymbol[] => 
             const fLineRange = Range.create(fLine, 0, fLine, lines[j].length);
             classChildren.push(DocumentSymbol.create(fName, 'field', SymbolKind.Field, fLineRange, fRange));
           }
+          const constructorMatch = lines[j].match(/^constructor\s*\[/);
+          if (constructorMatch) {
+            const cLine = j;
+            const cName = 'constructor';
+            const cCol = lines[j].indexOf('constructor');
+            const cRange = Range.create(cLine, cCol, cLine, cCol + 'constructor'.length);
+            const cLineRange = Range.create(cLine, 0, cLine, lines[j].length);
+            classChildren.push(DocumentSymbol.create(cName, 'constructor', SymbolKind.Constructor, cLineRange, cRange));
+          }
         }
       }
       const col = line.indexOf(name);
@@ -677,6 +690,36 @@ connection.onDocumentSymbol((params: DocumentSymbolParams): DocumentSymbol[] => 
   }
 
   return symbols;
+});
+
+// ─── Folding Ranges ───
+connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
+  const doc = documents.get(params.textDocument.uri);
+  if (!doc) return [];
+
+  const text = doc.getText();
+  const lines = text.split('\n');
+  const ranges: FoldingRange[] = [];
+  const stack: { line: number }[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const opens = (lines[i].match(/{/g) || []).length;
+    const closes = (lines[i].match(/}/g) || []).length;
+
+    for (let j = 0; j < opens; j++) stack.push({ line: i });
+    for (let j = 0; j < closes; j++) {
+      if (stack.length > 0) {
+        const start = stack.pop()!;
+        if (i - start.line > 1) {
+          ranges.push(
+            FoldingRange.create(start.line, i, undefined, undefined, FoldingRangeKind.Region)
+          );
+        }
+      }
+    }
+  }
+
+  return ranges;
 });
 
 // ─── Go-to-Definition ───
@@ -869,7 +912,7 @@ connection.onCodeAction((params: CodeActionParams): CodeAction[] => {
     }
 
     // Unmatched closing bracket: offer to remove it
-    const closeMatch = diagnostic.message.match(/^Unmatched (\)|\]|\}|>>?|]]|\|>)$/);
+    const closeMatch = diagnostic.message.match(/^Unmatched (\)|\]|\}|]]|\|>)$/);
     if (closeMatch) {
       actions.push({
         title: `Remove ${closeMatch[1]}`,
