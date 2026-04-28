@@ -336,10 +336,10 @@ export class SymaDebugSession extends DebugSession {
       this.process = undefined;
     }
     if (this.lastLaunchArgs) {
-      await this.launchRequest(response as unknown as DebugProtocol.LaunchResponse, this.lastLaunchArgs);
-    } else {
-      this.sendResponse(response);
+      const launchResponse = { type: 'response', command: 'launch', request_seq: 0, success: false } as DebugProtocol.LaunchResponse;
+      await this.launchRequest(launchResponse, this.lastLaunchArgs);
     }
+    this.sendResponse(response);
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────

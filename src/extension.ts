@@ -54,8 +54,8 @@ class SymaDocumentLinkProvider implements vscode.DocumentLinkProvider {
     const text = document.getText();
     const docDir = path.dirname(document.uri.fsPath);
 
-    // Match: `import ModuleName` or `import ModuleName.Submodule` or `import ModuleName as Alias`
-    const importRegex = /^[\s]*import\s+([\w.]+)(?:\s+as\s+\w+)?/gm;
+    // Match: `import ModuleName`, `import ModuleName.Submodule`, `import ModuleName.{symbols}`, `import ModuleName as Alias`
+    const importRegex = /^[\s]*import\s+([\w.]+)(?:\s*\.{[^}]*})?(?:\s+as\s+\w+)?/gm;
     let match: RegExpExecArray | null;
     while ((match = importRegex.exec(text)) !== null) {
       const modulePath = match[1].replace(/\./g, '/');
@@ -88,20 +88,10 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!terminal || terminal.exitStatus !== undefined) {
         terminal = vscode.window.createTerminal('Syma Run');
       }
-      terminal.sendText(`"${symaPath}" "${editor.document.uri.fsPath}"`);
+      const escapedPath = editor.document.uri.fsPath.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      const escapedSymaPath = symaPath.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      terminal.sendText(`"${escapedSymaPath}" "${escapedPath}"`);
       terminal.show();
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('syma.checkSyntax', async () => {
-      const editor = vscode.window.activeTextEditor;
-      if (!editor || editor.document.languageId !== 'syma') {
-        vscode.window.showWarningMessage('Open a .syma file first');
-        return;
-      }
-      await editor.document.save();
-      vscode.window.showInformationMessage('Syma syntax check triggered');
     })
   );
 

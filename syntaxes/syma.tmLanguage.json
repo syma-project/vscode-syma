@@ -144,15 +144,31 @@
       "patterns": [
         {
           "name": "support.function.builtin.trig.syma",
-          "match": "\\b(?:Sin|Cos|Tan|ArcSin|ArcCos|ArcTan)\\b"
+          "match": "\\b(?:Sin|Cos|Tan|Cot|Csc|Sec|ArcSin|ArcCos|ArcTan|ArcCot|ArcCsc|ArcSec)\\b"
+        },
+        {
+          "name": "support.function.builtin.hyperbolic.syma",
+          "match": "\\b(?:Sinh|Cosh|Tanh|Csch|Sech|Coth|ArcSinh|ArcCosh|ArcTanh|ArcCsch|ArcSech|ArcCoth)\\b"
+        },
+        {
+          "name": "support.function.builtin.trig-ext.syma",
+          "match": "\\b(?:Sinc|Haversine|InverseHaversine|SinDegrees|CosDegrees|TanDegrees|CscDegrees|SecDegrees|CotDegrees|ArcSinDegrees|ArcCosDegrees|ArcTanDegrees|ArcCscDegrees|ArcSecDegrees|ArcCotDegrees)\\b"
         },
         {
           "name": "support.function.builtin.math.syma",
-          "match": "\\b(?:Abs|Ceiling|Floor|Round|Mod|Sqrt|Exp|Log|Log2|Log10|Power|Factorial|GCD|LCM|N)\\b"
+          "match": "\\b(?:Abs|Ceiling|Floor|Round|Mod|Sqrt|Exp|Log|Log2|Log10|Power|Factorial|GCD|LCM|N|Gamma|IntegerPart|FractionalPart|Sign|UnitStep|Clip|Rescale|Quotient|QuotientRemainder|KroneckerDelta|IntegerQ|Chop|Unitize|Ramp|RealAbs|RealSign|LogisticSigmoid|NumericalOrder|UnitBox|UnitTriangle)\\b"
         },
         {
           "name": "support.function.builtin.arithmetic.syma",
-          "match": "\\b(?:Plus|Times|Divide|Minus|Sum|Total)\\b"
+          "match": "\\b(?:Plus|Times|Divide|Minus|Sum|Total|Product|NonCommutativeMultiply|Commutator|Anticommutator)\\b"
+        },
+        {
+          "name": "support.function.builtin.number-theory.syma",
+          "match": "\\b(?:PrimeQ|FactorInteger|Divisors|Prime|PrimePi|NextPrime|PowerMod|EulerPhi|MoebiusMu|DivisorSigma|Divisible|CoprimeQ|IntegerDigits|PrimeOmega|PrimeNu|DigitCount|JacobiSymbol|PrimitiveRoot)\\b"
+        },
+        {
+          "name": "support.function.builtin.discrete.syma",
+          "match": "\\b(?:DiscreteDelta|DiscreteShift|DiscreteRatio|FactorialPower|BernoulliB|LinearRecurrence|RecurrenceTable|Dispatch)\\b"
         },
         {
           "name": "support.function.builtin.calculus.syma",
@@ -160,23 +176,63 @@
         },
         {
           "name": "support.function.builtin.list.syma",
-          "match": "\\b(?:Length|First|Last|Rest|Most|Append|Prepend|Join|Flatten|Sort|Reverse|Take|Drop|Part|Range|Table|Map|Fold|Select|Scan|Nest|FixedPoint|Count|Position|Tally|PadLeft|PadRight|Riffle|Transpose|Union|Intersection|Complement|MemberQ|FreeQ)\\b"
+          "match": "\\b(?:Length|First|Last|Rest|Most|Append|Prepend|Join|Flatten|Sort|Reverse|Take|Drop|Part|Range|Table|Map|Fold|Select|Scan|Nest|FixedPoint|Count|Position|Tally|PadLeft|PadRight|Riffle|Transpose|Union|Intersection|Complement|MemberQ|FreeQ|Partition|Split|Gather|DeleteDuplicates|Insert|Delete|ReplacePart|RotateLeft|RotateRight|Ordering|ConstantArray|Diagonal|Accumulate|Differences|MovingAverage|ListConvolve|Nearest|Apply)\\b"
         },
         {
           "name": "support.function.builtin.string.syma",
-          "match": "\\b(?:StringJoin|StringLength|StringSplit|StringReplace|StringReverse|StringTake|StringDrop|StringContainsQ|StringStartsQ|StringEndsQ|StringMatchQ|StringPadLeft|StringPadRight|StringTrim|Characters|ToString|ToExpression|ToLowerCase|ToUpperCase)\\b"
+          "match": "\\b(?:StringJoin|StringLength|StringSplit|StringReplace|StringReverse|StringTake|StringDrop|StringContainsQ|StringStartsQ|StringEndsQ|StringMatchQ|StringPadLeft|StringPadRight|StringTrim|Characters|ToString|ToExpression|ToLowerCase|ToUpperCase|StringPart|StringPosition|StringCount|StringRepeat|StringDelete|StringInsert|StringRiffle|StringFreeQ|LetterQ|DigitQ|UpperCaseQ|LowerCaseQ|TextWords|CharacterCounts|Alphabet|ToCharacterCode|FromCharacterCode|EditDistance|LongestCommonSubsequence|LongestCommonSubString|WordCount|SentenceCount)\\b"
         },
         {
           "name": "support.function.builtin.assoc.syma",
-          "match": "\\b(?:Keys|Values|Lookup|KeyExistsQ)\\b"
+          "match": "\\b(?:Keys|Values|Lookup|KeyExistsQ|AssociationQ|Normal|KeySort|KeyTake|KeyDrop|KeyMemberQ|KeyFreeQ|AssociateTo|KeyDropFrom|Counts|KeyUnion|KeyComplement)\\b"
+        },
+        {
+          "name": "support.function.builtin.dataset.syma",
+          "match": "\\b(?:Dataset|DatasetQ|JoinAcross)\\b"
         },
         {
           "name": "support.function.builtin.io.syma",
-          "match": "\\b(?:Print|PrintF|Write|WriteLine|Input|RandomReal|RandomInteger|RandomChoice)\\b"
+          "match": "\\b(?:Print|PrintF|Write|WriteLine|Input|RandomReal|RandomInteger|RandomChoice|WriteString|ReadString|Export|Import|ImportString|ExportString|ReadList|FileRead|FileWrite|RunProcess|Message|MessageName)\\b"
         },
         {
           "name": "support.function.builtin.logic.syma",
-          "match": "\\b(?:And|Or|Not|Equal|Unequal|Less|Greater|LessEqual|GreaterEqual|Min|Max)\\b"
+          "match": "\\b(?:And|Or|Not|Equal|Unequal|Less|Greater|LessEqual|GreaterEqual|Min|Max|Xor|Nand|Nor|Equivalent|Implies|Majority|Boole|BooleanQ)\\b"
+        },
+        {
+          "name": "support.function.builtin.filesystem.syma",
+          "match": "\\b(?:FileNameSplit|FileNameJoin|FileNameTake|FileNameDrop|FileBaseName|FileExtension|FileNameDepth|DirectoryName|ParentDirectory|ExpandFileName|FileExistsQ|DirectoryQ|FileNames)\\b"
+        },
+        {
+          "name": "support.function.builtin.format.syma",
+          "match": "\\b(?:InputForm|FullForm|Short|Shallow|NumberForm|ScientificForm|BaseForm|Grid|Defer|SyntaxQ|SyntaxLength)\\b"
+        },
+        {
+          "name": "support.function.builtin.parallel.syma",
+          "match": "\\b(?:ParallelTable|ParallelSum|ParallelEvaluate|ParallelTry|ParallelProduct|ParallelDo|LaunchKernels|CloseKernels|KernelCount|ProcessorCount|AbortKernels)\\b"
+        },
+        {
+          "name": "support.function.builtin.image.syma",
+          "match": "\\b(?:Image|ImageData|ImageDimensions|ImageType|ImageResize|ImageRotate|ImageAdjust|Binarize|ColorConvert|GaussianFilter|EdgeDetect|ImageConvolve)\\b"
+        },
+        {
+          "name": "support.function.builtin.graphics.syma",
+          "match": "\\b(?:Graphics|ListPlot|ListLinePlot|ExportGraphics|Plot)\\b"
+        },
+        {
+          "name": "support.function.builtin.statistics.syma",
+          "match": "\\b(?:Mean|Median|Variance|StandardDeviation|Quantile|Covariance|Correlation|GeometricMean|HarmonicMean|Skewness|Kurtosis|Mode|InterquartileRange|WeightedMean|RootMeanSquare|MeanDeviation|MedianDeviation|Standardize|BinCounts|HistogramList)\\b"
+        },
+        {
+          "name": "support.function.builtin.distribution.syma",
+          "match": "\\b(?:NormalDistribution|UniformDistribution|PoissonDistribution|BinomialDistribution|BernoulliDistribution|GammaDistribution|StudentTDistribution|BetaDistribution|CauchyDistribution|PDF|CDF|RandomVariate)\\b"
+        },
+        {
+          "name": "support.function.builtin.linalg.syma",
+          "match": "\\b(?:Dimensions|Dot|MatrixMultiply|IdentityMatrix|Det|Inverse|Tr|Norm|Cross|LinearSolve|MatrixPower|Eigenvalues|Eigenvectors|ArrayFlatten|ZeroMatrix|DiagonalMatrix|UnitVector|RowReduce|MatrixRank|NullSpace|Row|Column|KroneckerProduct|VectorAngle|PseudoInverse|Minors)\\b"
+        },
+        {
+          "name": "support.function.builtin.developer.syma",
+          "match": "\\b(?:LocalSymbol|Sequence|LibraryFunction|MachineIntegerQ|PackedArrayQ|ToPackedArray|FromPackedArray|BesselSimplify|GammaSimplify|PolyGammaSimplify|ZetaSimplify|PolyLogSimplify|TrigToRadicals)\\b"
         },
         {
           "name": "support.function.builtin.pattern.syma",
